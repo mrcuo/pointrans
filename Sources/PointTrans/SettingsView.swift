@@ -30,7 +30,6 @@ struct SettingsView: View {
             }
         }
         .frame(width: 580, height: 400)
-        .id(appLanguage)
         .onAppear {
             updateWindowTitle()
         }
@@ -90,19 +89,25 @@ struct GeneralTab: View {
 }
 
 // MARK: - AI Settings Tab
+
+private enum ConnectionTestResult {
+    case success
+    case failure(String)
+}
+
 struct AITab: View {
     @AppStorage("aiEnabled") private var aiEnabled = false
     @AppStorage("aiProvider") private var aiProvider = "gemini"
 
     @AppStorage("geminiApiKey") private var geminiApiKey = ""
-    @AppStorage("geminiModel") private var geminiModel = "gemini-1.5-flash"
+    @AppStorage("geminiModel") private var geminiModel = "gemini-2.5-flash"
 
     @AppStorage("openaiApiKey") private var openaiApiKey = ""
     @AppStorage("openaiEndpoint") private var openaiEndpoint = "https://api.openai.com/v1/chat/completions"
     @AppStorage("openaiModel") private var openaiModel = "gpt-4o-mini"
 
     @State private var isTesting = false
-    @State private var testStatus: String? = nil
+    @State private var testResult: ConnectionTestResult?
 
     var body: some View {
         Form {
@@ -121,17 +126,16 @@ struct AITab: View {
             if aiEnabled {
                 if aiProvider == "gemini" {
                     Section("Gemini") {
-                        SecureField("Gemini API Key", text: $geminiApiKey)
+                        SecureField(Localization.string(for: "ai_api_key"), text: $geminiApiKey)
 
                         Picker(Localization.string(for: "ai_model"), selection: $geminiModel) {
-                            Text("gemini-1.5-flash (Fast)").tag("gemini-1.5-flash")
-                            Text("gemini-2.5-flash (New)").tag("gemini-2.5-flash")
-                            Text("gemini-1.5-pro (Deep)").tag("gemini-1.5-pro")
+                            Text("gemini-2.5-flash").tag("gemini-2.5-flash")
+                            Text("gemini-2.5-pro").tag("gemini-2.5-pro")
                         }
                     }
                 } else {
                     Section("OpenAI") {
-                        SecureField("OpenAI API Key", text: $openaiApiKey)
+                        SecureField(Localization.string(for: "ai_api_key"), text: $openaiApiKey)
 
                         TextField(Localization.string(for: "ai_endpoint"), text: $openaiEndpoint)
 
@@ -148,31 +152,32 @@ struct AITab: View {
                                     .controlSize(.small)
                                     .scaleEffect(0.8)
                                     .padding(.trailing, 4)
-                                Text("正在测试连接...")
+                                Text(Localization.string(for: "testing_connection"))
                             } else {
-                                Text("测试连接 / Test Connection")
+                                Text(Localization.string(for: "test_connection"))
                             }
                             Spacer()
                         }
                     }
                     .disabled(isTesting || (aiProvider == "gemini" ? geminiApiKey.isEmpty : openaiApiKey.isEmpty))
 
-                    if let status = testStatus {
+                    if let result = testResult {
                         HStack {
                             Spacer()
-                            if status.hasPrefix("success") {
-                                Label("连接成功 / Connection Successful", systemImage: "checkmark.circle.fill")
+                            switch result {
+                            case .success:
+                                Label(Localization.string(for: "test_success"), systemImage: "checkmark.circle.fill")
                                     .foregroundColor(.green)
-                            } else {
-                                Label("连接失败 / Connection Failed", systemImage: "exclamationmark.triangle.fill")
+                            case .failure:
+                                Label(Localization.string(for: "test_failed"), systemImage: "exclamationmark.triangle.fill")
                                     .foregroundColor(.red)
                             }
                             Spacer()
                         }
                         .padding(.top, 4)
 
-                        if !status.hasPrefix("success") {
-                            Text(status.replacingOccurrences(of: "error: ⚠️", with: "").replacingOccurrences(of: "error:", with: ""))
+                        if case .failure(let message) = result {
+                            Text(message)
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -184,26 +189,22 @@ struct AITab: View {
             }
         }
         .formStyle(.grouped)
-        .onChange(of: aiProvider) { _, _ in testStatus = nil }
-        .onChange(of: geminiApiKey) { _, _ in testStatus = nil }
-        .onChange(of: openaiApiKey) { _, _ in testStatus = nil }
-        .onChange(of: openaiEndpoint) { _, _ in testStatus = nil }
-        .onChange(of: openaiModel) { _, _ in testStatus = nil }
+        .onChange(of: aiProvider) { _, _ in testResult = nil }
+        .onChange(of: geminiApiKey) { _, _ in testResult = nil }
+        .onChange(of: openaiApiKey) { _, _ in testResult = nil }
+        .onChange(of: openaiEndpoint) { _, _ in testResult = nil }
+        .onChange(of: openaiModel) { _, _ in testResult = nil }
     }
 
     private func runConnectionTest() {
         isTesting = true
-        testStatus = nil
+        testResult = nil
 
         Task {
             let (success, message) = await TranslationService.shared.testConnection()
             await MainActor.run {
                 isTesting = false
-                if success {
-                    testStatus = "success"
-                } else {
-                    testStatus = "error: \(message)"
-                }
+                testResult = success ? .success : .failure(message)
             }
         }
     }
@@ -308,6 +309,7 @@ class SettingsWindowManager {
     static let shared = SettingsWindowManager()
 
     var window: NSWindow?
+    private var closeObserver: NSObjectProtocol?
 
     func show() {
         if let existingWindow = window {
@@ -335,12 +337,16 @@ class SettingsWindowManager {
         newWindow.makeKeyAndOrderFront(nil)
         NSApp.activate()
 
-        NotificationCenter.default.addObserver(
+        closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: newWindow,
             queue: .main
         ) { [weak self] _ in
             self?.window = nil
+            if let observer = self?.closeObserver {
+                NotificationCenter.default.removeObserver(observer)
+                self?.closeObserver = nil
+            }
         }
     }
 }

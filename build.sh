@@ -57,7 +57,7 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundleExecutable</key>
     <string>PointTrans</string>
     <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
+    <string>15.2</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

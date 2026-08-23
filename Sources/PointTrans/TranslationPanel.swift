@@ -106,7 +106,7 @@ struct TranslationView: View {
                                 .opacity(0.5)
                             
                             ScrollView(.vertical, showsIndicators: true) {
-                                Text(LocalizedStringKey(ai))
+                                aiMarkdownText(ai)
                                     .font(.system(.subheadline, design: .default))
                                     .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,6 +167,17 @@ struct TranslationView: View {
         )
         .textSelection(.enabled) // Enable user text selection and copy
     }
+
+    /// Renders the AI's Markdown output safely. `LocalizedStringKey` was replaced because it
+    /// interprets `%@` / `\(...)` interpolation placeholders, which breaks on arbitrary model text.
+    @ViewBuilder
+    private func aiMarkdownText(_ markdown: String) -> some View {
+        if let attributed = try? AttributedString(markdown: markdown) {
+            Text(attributed)
+        } else {
+            Text(markdown)
+        }
+    }
 }
 
 // MARK: - NSPanel Controller for Floating Window
@@ -215,16 +226,18 @@ class TranslationPanel: NSPanel {
             onFetchAI: onFetchAI
         )
         
+        let host: NSHostingView<TranslationView>
         if let existing = hostingView {
-            existing.removeFromSuperview()
+            existing.rootView = view
+            host = existing
+        } else {
+            host = NSHostingView(rootView: view)
+            hostingView = host
+            contentView = host
         }
-        
-        let newHostingView = NSHostingView(rootView: view)
-        self.contentView = newHostingView
-        self.hostingView = newHostingView
-        
+
         // Dynamically compute layout height using SwiftUI auto layout sizing
-        let fittingSize = newHostingView.fittingSize
+        let fittingSize = host.fittingSize
         let finalWidth: CGFloat = 300
         let finalHeight = fittingSize.height
         

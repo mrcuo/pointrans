@@ -1,6 +1,7 @@
 import Cocoa
 import Vision
 import CoreGraphics
+import ScreenCaptureKit
 
 struct ExtractedText {
     let word: String
@@ -11,36 +12,35 @@ class TextExtractor {
     
     /// Extracts the word (English or Chinese depending on translation mode) directly under the mouse cursor,
     /// along with its containing line/sentence as context.
-    static func extractWordAtCursor(mode: String) -> ExtractedText? {
-        // 1. Get mouse position in Cocoa coordinates (origin at bottom-left of the primary display)
+    ///
+    /// Screen capture + OCR are heavy, so this hops off the main thread; only the mouse
+    /// position is read here on the main thread.
+    @MainActor
+    static func extractWordAtCursor(mode: String) async -> ExtractedText? {
         let mousePos = NSEvent.mouseLocation
+        let cgPoint = CGPoint(
+            x: mousePos.x,
+            y: CGFloat(CGDisplayBounds(CGMainDisplayID()).height) - mousePos.y
+        )
+        return await Task.detached(priority: .userInitiated) {
+            await extract(mode: mode, center: cgPoint)
+        }.value
+    }
 
-        // 2. Find screen containing the mouse to convert to CG coordinates
-        // CG coordinates: origin at top-left of the primary screen
-        let screens = NSScreen.screens
-        guard !screens.isEmpty else { return nil }
-        
-        let primaryScreenHeight = screens[0].frame.height
-        let cgMouseY = primaryScreenHeight - mousePos.y
-        let cgMouseX = mousePos.x
-
-        // Define capture bounds centered around the mouse cursor
+    private static func extract(mode: String, center cgPoint: CGPoint) async -> ExtractedText? {
+        // Define capture bounds centered around the mouse cursor (in Quartz global coordinates).
         let width: CGFloat = 400
         let height: CGFloat = 80
         let captureRect = CGRect(
-            x: cgMouseX - (width / 2),
-            y: cgMouseY - (height / 2),
+            x: cgPoint.x - (width / 2),
+            y: cgPoint.y - (height / 2),
             width: width,
             height: height
         )
 
-        // 3. Capture screen contents in memory
-        guard let cgImage = CGWindowListCreateImage(
-            captureRect,
-            .excludeDesktopElements,
-            kCGNullWindowID,
-            .nominalResolution
-        ) else {
+        // Capture screen contents in memory (ScreenCaptureKit; app requires macOS 15.2+).
+        guard #available(macOS 15.2, *) else { return nil }
+        guard let cgImage = try? await SCScreenshotManager.captureImage(in: captureRect) else {
             print("[TextExtractor] Failed to capture screen image. Screen Recording permission might be missing.")
             return nil
         }
@@ -151,17 +151,20 @@ class TextExtractor {
         return nil
     }
 
+    private static let englishWordRegex = try! NSRegularExpression(pattern: "^[a-zA-Z]+(['-][a-zA-Z]+)*$")
+    private static let hanRegex = try! NSRegularExpression(pattern: "\\p{Han}")
+
     /// Check if the word is composed of English alphabetical characters (allowing hyphens and apostrophes within).
     private static func isEnglishWord(_ word: String) -> Bool {
         // Must start and end with a letter, may contain hyphens/apostrophes in the middle
-        let pattern = "^[a-zA-Z]+(['-][a-zA-Z]+)*$"
-        return word.range(of: pattern, options: .regularExpression) != nil
+        let range = NSRange(word.startIndex..., in: word)
+        return englishWordRegex.firstMatch(in: word, range: range) != nil
     }
-    
+
     /// Check if the word contains Chinese Han characters.
     private static func isChineseWord(_ word: String) -> Bool {
-        let pattern = "\\p{Han}"
-        return word.range(of: pattern, options: .regularExpression) != nil
+        let range = NSRange(word.startIndex..., in: word)
+        return hanRegex.firstMatch(in: word, range: range) != nil
     }
 
     /// Tokenizes a line into words and their corresponding Ranges in the String.

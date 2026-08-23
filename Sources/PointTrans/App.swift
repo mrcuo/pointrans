@@ -24,6 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var aboutMenuItem: NSMenuItem?
     var quitMenuItem: NSMenuItem?
     private var isShowingAlert = false
+    private var translationGeneration = 0
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Initialize default settings if not already set
@@ -49,7 +50,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "translationMode": defaultMode,
             "aiEnabled": false,
             "aiProvider": "gemini",
-            "geminiModel": "gemini-1.5-flash",
+            "geminiModel": "gemini-2.5-flash",
             "openaiEndpoint": "https://api.openai.com/v1/chat/completions",
             "openaiModel": "gpt-4o-mini"
         ]
@@ -175,13 +176,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     @objc private func showAbout() {
         let versionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        
+        let year = Calendar.current.component(.year, from: Date())
+
         let alert = NSAlert()
         alert.messageText = "PointTrans"
-        alert.informativeText = "\(Localization.string(for: "app_name"))\nVersion \(versionString)\n\n© 2024 Tailcasso"
+        alert.informativeText = "\(Localization.string(for: "app_name"))\nVersion \(versionString)\n\n© \(year) Tailcasso"
         alert.alertStyle = .informational
         alert.icon = NSApp.applicationIconImage
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: Localization.string(for: "ok"))
         alert.runModal()
     }
     
@@ -193,71 +195,74 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     
     private func setupEventMonitors() {
         HotKeyHandler.shared.startMonitoring()
-        
+
         // Bind hover activation callback
-        HotKeyHandler.shared.onHoverTriggered = { mousePoint in
-            DispatchQueue.main.async {
-                self.handleHoverTrigger(at: mousePoint)
-            }
+        HotKeyHandler.shared.onHoverTriggered = { [weak self] mousePoint in
+            self?.handleHoverTrigger(at: mousePoint)
         }
-        
+
         // Dismiss panel if mouse moves
         HotKeyHandler.shared.onMouseMoved = {
-            DispatchQueue.main.async {
-                TranslationPanel.shared.requestDismiss()
-            }
+            TranslationPanel.shared.requestDismiss()
         }
-        
+
         // Dismiss panel if modifier key is released
         HotKeyHandler.shared.onModifierReleased = {
-            DispatchQueue.main.async {
-                TranslationPanel.shared.requestDismiss()
-            }
+            TranslationPanel.shared.requestDismiss()
         }
     }
     
     private func handleHoverTrigger(at mousePoint: NSPoint) {
         let isEnabled = UserDefaults.standard.bool(forKey: "translationEnabled")
         guard isEnabled else { return }
-        
+
         // 1. Check Screen Recording permissions
         if !CGPreflightScreenCaptureAccess() {
             showPermissionAlert()
             return
         }
-        
+
         let activeMode = UserDefaults.standard.string(forKey: "translationMode") ?? "en-to-zh"
-        
-        // 2. Perform local OCR text extraction
-        guard let extracted = TextExtractor.extractWordAtCursor(mode: activeMode) else {
-            return
-        }
-        
-        let word = extracted.word
-        let context = extracted.context
         let isAiEnabled = UserDefaults.standard.bool(forKey: "aiEnabled")
-        
-        // 3. Show floating window in loading state
-        TranslationPanel.shared.show(
-            at: mousePoint,
-            word: word,
-            context: context,
-            googleResult: nil,
-            phonetic: nil,
-            aiResult: nil,
-            aiEnabled: isAiEnabled,
-            isAILoading: false,
-            direction: activeMode,
-            onFetchAI: nil
-        )
-        
-        // 4. Fetch translations asynchronously in background task (runs on MainActor)
+
+        // Every hover trigger advances the generation; async callbacks that no longer
+        // match it are stale results for a previous word and are dropped.
+        translationGeneration += 1
+        let generation = translationGeneration
+
         Task {
-            // Request Google translation (non-isolated network call)
+            // 2. Local OCR text extraction (runs off the main thread, see TextExtractor)
+            guard let extracted = await TextExtractor.extractWordAtCursor(mode: activeMode) else {
+                return
+            }
+            guard generation == translationGeneration else { return }
+
+            let word = extracted.word
+            let context = extracted.context
+
+            // 3. Show floating window in loading state
+            TranslationPanel.shared.show(
+                at: mousePoint,
+                word: word,
+                context: context,
+                googleResult: nil,
+                phonetic: nil,
+                aiResult: nil,
+                aiEnabled: isAiEnabled,
+                isAILoading: false,
+                direction: activeMode,
+                onFetchAI: nil
+            )
+
+            // 4. Fetch translations asynchronously
             let googleTrans = await TranslationService.shared.translateWithGoogle(word: word, direction: activeMode)
-            
-            let fetchAI: () -> Void = {
-                Task {
+            guard generation == translationGeneration else { return }
+
+            let fetchAI: () -> Void = { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    guard generation == self.translationGeneration else { return }
+
                     if TranslationPanel.shared.isVisible {
                         TranslationPanel.shared.update(
                             word: word,
@@ -271,9 +276,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                             onFetchAI: nil
                         )
                     }
-                    
+
                     let aiTrans = await TranslationService.shared.translateWithAI(word: word, context: context, direction: activeMode)
-                    
+                    guard generation == self.translationGeneration else { return }
+
                     if TranslationPanel.shared.isVisible {
                         TranslationPanel.shared.update(
                             word: word,
@@ -289,8 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     }
                 }
             }
-            
-            // Resumes on MainActor automatically
+
             if TranslationPanel.shared.isVisible {
                 TranslationPanel.shared.update(
                     word: word,

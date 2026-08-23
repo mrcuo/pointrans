@@ -6,15 +6,19 @@ struct Localization {
     static func string(for key: String) -> String {
         let selected = UserDefaults.standard.string(forKey: "appLanguage") ?? "auto"
         let lang: String
-        
+
         if selected == "auto" {
             let preferredLang = Locale.preferredLanguages.first?.lowercased() ?? "en"
             lang = preferredLang.hasPrefix("zh") ? "zh" : "en"
         } else {
             lang = selected
         }
-        
-        let localizations: [String: [String: String]] = [
+
+        return localizations[key]?[lang] ?? key
+    }
+
+    /// Built once; `string(for:)` previously rebuilt this dictionary on every call.
+    private static let localizations: [String: [String: String]] = [
             "app_name": ["zh": "光标翻译", "en": "PointTrans"],
             "quick_trans": ["zh": "快速翻译", "en": "Quick Translation"],
             "ai_trans": ["zh": "AI 语境深度解析", "en": "AI Context Analysis"],
@@ -73,11 +77,16 @@ struct Localization {
             "net_error_google": ["zh": "⚠️ 网络连接失败。请在设置中查看离线词包状态。", "en": "⚠️ Network error. Please check offline dictionary in Settings."],
             
             // TTS Pronunciation Tooltip
-            "pronounce_tooltip": ["zh": "朗读单词", "en": "Pronounce word"]
+            "pronounce_tooltip": ["zh": "朗读单词", "en": "Pronounce word"],
+
+            // Test connection
+            "test_connection": ["zh": "测试连接", "en": "Test Connection"],
+            "testing_connection": ["zh": "正在测试连接...", "en": "Testing connection..."],
+            "test_success": ["zh": "连接成功", "en": "Connection Successful"],
+            "test_failed": ["zh": "连接失败", "en": "Connection Failed"],
+            "ai_api_key": ["zh": "API Key", "en": "API Key"],
+            "ok": ["zh": "好", "en": "OK"]
         ]
-        
-        return localizations[key]?[lang] ?? key
-    }
     
     /// Formulates the localization-aware prompt for AI context translation.
     static func translationPrompt(word: String, context: String, direction: String) -> String {

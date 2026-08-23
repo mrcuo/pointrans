@@ -5,32 +5,38 @@ struct GoogleTranslationResult {
     let phonetic: String?
 }
 
-class TranslationService {
-    
-    static let shared = TranslationService()
-    
-    private var localDict: [String: [String: String]] = [:]
-    
-    private init() {
-        loadLocalDictionary()
+final class TranslationService {
+
+    enum AIResult {
+        case success(String)
+        case failure(String)
     }
-    
+
+    static let shared = TranslationService()
+
+    private let localDict: [String: [String: String]]
+
+    private init() {
+        localDict = Self.loadLocalDictionary()
+    }
+
     /// Loads the local fallback dictionary from the App Bundle Resources
-    private func loadLocalDictionary() {
+    private static func loadLocalDictionary() -> [String: [String: String]] {
         guard let url = Bundle.main.url(forResource: "local_dict", withExtension: "json") else {
             print("[TranslationService] Warning: local_dict.json not found in App Bundle Resources.")
-            return
+            return [:]
         }
-        
+
         do {
             let data = try Data(contentsOf: url)
             if let dict = try JSONSerialization.jsonObject(with: data) as? [String: [String: String]] {
-                self.localDict = dict
                 print("[TranslationService] Loaded local dictionary with \(dict["en_to_zh"]?.count ?? 0) EN and \(dict["zh_to_en"]?.count ?? 0) ZH words.")
+                return dict
             }
         } catch {
             print("[TranslationService] Error loading local dictionary: \(error)")
         }
+        return [:]
     }
     
     /// Fallback dictionary lookup. Supports exact matching, English prefixes, and Chinese character substring contains.
@@ -140,27 +146,34 @@ class TranslationService {
     /// Translates a word in its context using AI (Gemini or OpenAI-compatible API)
     func translateWithAI(word: String, context: String, direction: String) async -> String? {
         let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "gemini"
-        
         let prompt = Localization.translationPrompt(word: word, context: context, direction: direction)
-        
+
+        let result: AIResult
         if provider == "gemini" {
-            return await callGeminiAPI(prompt: prompt)
+            result = await callGeminiAPI(prompt: prompt)
         } else {
-            return await callOpenAIAPI(prompt: prompt)
+            result = await callOpenAIAPI(prompt: prompt)
+        }
+
+        switch result {
+        case .success(let text): return text
+        case .failure(let message): return message
         }
     }
     
-    private func callGeminiAPI(prompt: String) async -> String? {
+    private func callGeminiAPI(prompt: String) async -> AIResult {
         let apiKey = UserDefaults.standard.string(forKey: "geminiApiKey") ?? ""
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-flash"
-        
+        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
+
         guard !apiKey.isEmpty else {
-            return Localization.string(for: "ai_key_warning")
+            return .failure(Localization.string(for: "ai_key_warning"))
         }
-        
-        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)"
-        guard let url = URL(string: endpoint) else { return nil }
-        
+
+        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
+        guard let url = URL(string: endpoint) else {
+            return .failure("⚠️ Invalid endpoint")
+        }
+
         let payload: [String: Any] = [
             "contents": [
                 [
@@ -173,24 +186,27 @@ class TranslationService {
                 "temperature": 0.2
             ]
         ]
-        
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
-        
+
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+            return .failure("⚠️ Invalid request payload")
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 30.0
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         request.httpBody = httpBody
-        
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
                 let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
                 print("[TranslationService] Gemini Error Code: \(httpResponse.statusCode), body: \(errorMsg)")
-                return "⚠️ Gemini API Error: \(httpResponse.statusCode)"
+                return .failure("⚠️ Gemini API Error: \(httpResponse.statusCode)")
             }
-            
+
             if let json = jsonObject(data: data),
                let candidates = json["candidates"] as? [[String: Any]],
                let firstCandidate = candidates.first,
@@ -198,26 +214,28 @@ class TranslationService {
                let parts = content["parts"] as? [[String: Any]],
                let firstPart = parts.first,
                let text = firstPart["text"] as? String {
-                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return .success(text.trimmingCharacters(in: .whitespacesAndNewlines))
             }
-            return "⚠️ Gemini response format error"
+            return .failure("⚠️ Gemini response format error")
         } catch {
             print("[TranslationService] Gemini network error: \(error)")
-            return "⚠️ Gemini offline / timeout"
+            return .failure("⚠️ Gemini offline / timeout")
         }
     }
-    
-    private func callOpenAIAPI(prompt: String) async -> String? {
+
+    private func callOpenAIAPI(prompt: String) async -> AIResult {
         let apiKey = UserDefaults.standard.string(forKey: "openaiApiKey") ?? ""
         let endpoint = UserDefaults.standard.string(forKey: "openaiEndpoint") ?? "https://api.openai.com/v1/chat/completions"
         let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o-mini"
-        
+
         guard !apiKey.isEmpty else {
-            return Localization.string(for: "ai_key_warning")
+            return .failure(Localization.string(for: "ai_key_warning"))
         }
-        
-        guard let url = URL(string: endpoint) else { return nil }
-        
+
+        guard let url = URL(string: endpoint) else {
+            return .failure("⚠️ Invalid endpoint")
+        }
+
         let payload: [String: Any] = [
             "model": model,
             "messages": [
@@ -225,60 +243,57 @@ class TranslationService {
             ],
             "temperature": 0.2
         ]
-        
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return nil }
-        
+
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+            return .failure("⚠️ Invalid request payload")
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 30.0
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = httpBody
-        
+
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            
+
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
                 let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
                 print("[TranslationService] OpenAI Error Code: \(httpResponse.statusCode), body: \(errorMsg)")
-                return "⚠️ API Error: \(httpResponse.statusCode)"
+                return .failure("⚠️ API Error: \(httpResponse.statusCode)")
             }
-            
+
             if let json = jsonObject(data: data),
                let choices = json["choices"] as? [[String: Any]],
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let text = message["content"] as? String {
-                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+                return .success(text.trimmingCharacters(in: .whitespacesAndNewlines))
             }
-            return "⚠️ API response format error"
+            return .failure("⚠️ API response format error")
         } catch {
             print("[TranslationService] OpenAI network error: \(error)")
-            return "⚠️ API offline / timeout"
+            return .failure("⚠️ API offline / timeout")
         }
     }
-    
+
     /// Tests connection to the selected AI provider with a simple prompt
     func testConnection() async -> (success: Bool, message: String) {
         let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "gemini"
         let prompt = "Respond with only one word: OK"
-        
-        let result: String?
+
+        let result: AIResult
         if provider == "gemini" {
             result = await callGeminiAPI(prompt: prompt)
         } else {
             result = await callOpenAIAPI(prompt: prompt)
         }
-        
-        guard let res = result else {
-            return (false, "Timeout or no response / 超时或无响应")
+
+        switch result {
+        case .success(let text): return (true, text)
+        case .failure(let message): return (false, message)
         }
-        
-        if res.contains("⚠️") || res.contains("Error") || res.contains("error") || res.contains("offline") || res.contains("fail") {
-            return (false, res)
-        }
-        
-        return (true, res)
     }
     
     private func jsonObject(data: Data) -> [String: Any]? {
