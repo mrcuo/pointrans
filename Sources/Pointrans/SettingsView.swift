@@ -57,10 +57,15 @@ struct GeneralTab: View {
 
                 if translationEnabled {
                     Picker(Localization.string(for: "general_key"), selection: $modifierKey) {
-                        Text("Command (⌘)").tag("command")
-                        Text("Option (⌥)").tag("option")
-                        Text("Control (⌃)").tag("control")
-                        Text("Shift (⇧)").tag("shift")
+                        Text(Localization.string(for: "mod_any_command")).tag("command")
+                        Text(Localization.string(for: "mod_command_l")).tag("command-l")
+                        Text(Localization.string(for: "mod_command_r")).tag("command-r")
+                        Text(Localization.string(for: "mod_option_l")).tag("option-l")
+                        Text(Localization.string(for: "mod_option_r")).tag("option-r")
+                        Text(Localization.string(for: "mod_control_l")).tag("control-l")
+                        Text(Localization.string(for: "mod_control_r")).tag("control-r")
+                        Text(Localization.string(for: "mod_shift_l")).tag("shift-l")
+                        Text(Localization.string(for: "mod_shift_r")).tag("shift-r")
                     }
 
                     HStack {
@@ -106,6 +111,9 @@ struct AITab: View {
     @AppStorage("openaiEndpoint") private var openaiEndpoint = "https://api.openai.com/v1/chat/completions"
     @AppStorage("openaiModel") private var openaiModel = "gpt-4o-mini"
 
+    @AppStorage("deepseekApiKey") private var deepseekApiKey = ""
+    @AppStorage("deepseekModel") private var deepseekModel = "deepseek-chat"
+
     @State private var isTesting = false
     @State private var testResult: ConnectionTestResult?
 
@@ -117,6 +125,7 @@ struct AITab: View {
                 if aiEnabled {
                     Picker(Localization.string(for: "ai_provider"), selection: $aiProvider) {
                         Text("Google Gemini").tag("gemini")
+                        Text("DeepSeek").tag("deepseek")
                         Text("OpenAI").tag("openai")
                     }
                     .pickerStyle(.segmented)
@@ -131,6 +140,15 @@ struct AITab: View {
                         Picker(Localization.string(for: "ai_model"), selection: $geminiModel) {
                             Text("gemini-2.5-flash").tag("gemini-2.5-flash")
                             Text("gemini-2.5-pro").tag("gemini-2.5-pro")
+                        }
+                    }
+                } else if aiProvider == "deepseek" {
+                    Section("DeepSeek") {
+                        SecureField(Localization.string(for: "ai_api_key"), text: $deepseekApiKey)
+
+                        Picker(Localization.string(for: "ai_model"), selection: $deepseekModel) {
+                            Text("deepseek-chat").tag("deepseek-chat")
+                            Text("deepseek-reasoner").tag("deepseek-reasoner")
                         }
                     }
                 } else {
@@ -159,7 +177,7 @@ struct AITab: View {
                             Spacer()
                         }
                     }
-                    .disabled(isTesting || (aiProvider == "gemini" ? geminiApiKey.isEmpty : openaiApiKey.isEmpty))
+                    .disabled(isTesting || keyIsEmpty)
 
                     if let result = testResult {
                         HStack {
@@ -194,6 +212,16 @@ struct AITab: View {
         .onChange(of: openaiApiKey) { _, _ in testResult = nil }
         .onChange(of: openaiEndpoint) { _, _ in testResult = nil }
         .onChange(of: openaiModel) { _, _ in testResult = nil }
+        .onChange(of: deepseekApiKey) { _, _ in testResult = nil }
+        .onChange(of: deepseekModel) { _, _ in testResult = nil }
+    }
+
+    private var keyIsEmpty: Bool {
+        switch aiProvider {
+        case "gemini": return geminiApiKey.isEmpty
+        case "deepseek": return deepseekApiKey.isEmpty
+        default: return openaiApiKey.isEmpty
+        }
     }
 
     private func runConnectionTest() {

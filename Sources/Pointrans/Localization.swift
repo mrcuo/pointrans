@@ -49,6 +49,16 @@ struct Localization {
             "general_key": ["zh": "触发修饰键", "en": "Trigger Modifier Key"],
             "general_delay": ["zh": "鼠标悬停延迟", "en": "Hover Delay"],
             "general_language": ["zh": "界面语言", "en": "App Language"],
+
+            "mod_any_command": ["zh": "Command（任意一侧）", "en": "Command (Either)"],
+            "mod_command_l": ["zh": "左 Command (⌘)", "en": "Left Command (⌘)"],
+            "mod_command_r": ["zh": "右 Command (⌘)", "en": "Right Command (⌘)"],
+            "mod_option_l": ["zh": "左 Option (⌥)", "en": "Left Option (⌥)"],
+            "mod_option_r": ["zh": "右 Option (⌥)", "en": "Right Option (⌥)"],
+            "mod_control_l": ["zh": "左 Control (⌃)", "en": "Left Control (⌃)"],
+            "mod_control_r": ["zh": "右 Control (⌃)", "en": "Right Control (⌃)"],
+            "mod_shift_l": ["zh": "左 Shift (⇧)", "en": "Left Shift (⇧)"],
+            "mod_shift_r": ["zh": "右 Shift (⇧)", "en": "Right Shift (⇧)"],
             
             "lang_auto": ["zh": "自动 (跟随系统)", "en": "Auto (System Default)"],
             "lang_zh": ["zh": "简体中文", "en": "简体中文"],

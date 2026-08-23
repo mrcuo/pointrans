@@ -52,7 +52,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "aiProvider": "gemini",
             "geminiModel": "gemini-2.5-flash",
             "openaiEndpoint": "https://api.openai.com/v1/chat/completions",
-            "openaiModel": "gpt-4o-mini"
+            "openaiModel": "gpt-4o-mini",
+            "deepseekEndpoint": "https://api.deepseek.com/chat/completions",
+            "deepseekModel": "deepseek-chat"
         ]
         UserDefaults.standard.register(defaults: defaults)
     }
