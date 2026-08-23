@@ -19,14 +19,14 @@ struct Localization {
 
     /// Built once; `string(for:)` previously rebuilt this dictionary on every call.
     private static let localizations: [String: [String: String]] = [
-            "app_name": ["zh": "光标翻译", "en": "PointTrans"],
+            "app_name": ["zh": "光标翻译", "en": "Pointrans"],
             "quick_trans": ["zh": "快速翻译", "en": "Quick Translation"],
             "ai_trans": ["zh": "AI 语境深度解析", "en": "AI Context Analysis"],
             "ai_loading": ["zh": "正在分析语境中...", "en": "Analyzing context..."],
             "loading_translating": ["zh": "正在翻译...", "en": "Translating..."],
             "loading_ai": ["zh": "正在翻译及分析语境...", "en": "Translating & analyzing context..."],
             "no_permission": ["zh": "未启用屏幕录制权限", "en": "Screen Recording Permission Disabled"],
-            "no_permission_desc": ["zh": "PointTrans 需要屏幕录制权限来识别屏幕上的单词。\n请点击菜单栏图标 -> 设置 -> 系统权限 选项卡，按提示授予权限。", "en": "PointTrans requires screen recording permission to parse words on the screen.\nPlease click the menu bar icon -> Settings -> System Permissions, and grant permission."],
+            "no_permission_desc": ["zh": "Pointrans 需要屏幕录制权限来识别屏幕上的单词。\n请点击菜单栏图标 -> 设置 -> 系统权限 选项卡，按提示授予权限。", "en": "Pointrans requires screen recording permission to parse words on the screen.\nPlease click the menu bar icon -> Settings -> System Permissions, and grant permission."],
             "ai_translation_button": ["zh": "AI 语境翻译", "en": "AI Translation"],
             
             // Menu Items
@@ -35,11 +35,11 @@ struct Localization {
             "menu_mode_en_zh_short": ["zh": "英语 → 中文", "en": "English → Chinese"],
             "menu_mode_zh_en_short": ["zh": "中文 → 英语", "en": "Chinese → English"],
             "menu_settings": ["zh": "设置...", "en": "Settings..."],
-            "menu_about": ["zh": "关于 PointTrans", "en": "About PointTrans"],
+            "menu_about": ["zh": "关于 Pointrans", "en": "About Pointrans"],
             "menu_quit": ["zh": "退出", "en": "Quit"],
             
             // Settings Window
-            "settings_title": ["zh": "设置 - PointTrans", "en": "Settings - PointTrans"],
+            "settings_title": ["zh": "设置 - Pointrans", "en": "Settings - Pointrans"],
             "tab_general": ["zh": "常规", "en": "General"],
             "tab_ai": ["zh": "AI 翻译", "en": "AI Translation"],
             "tab_permissions": ["zh": "系统权限", "en": "Permissions"],
@@ -71,7 +71,7 @@ struct Localization {
             "permission_not_granted": ["zh": "未获得权限", "en": "Permission not granted"],
             "permission_btn_request": ["zh": "点击申请屏幕录制权限", "en": "Click to request permission"],
             "permission_btn_check": ["zh": "重新检查权限状态", "en": "Re-check permission status"],
-            "permission_tip": ["zh": "💡 提示：在弹出系统对话框时，请选择\u{201C}打开系统设置\u{201D}，并勾选\u{201C}PointTrans\u{201D}。开启后如不能立即生效，建议重启本应用。", "en": "💡 Tip: When the system dialog prompts, click 'Open System Settings' and check 'PointTrans'. If it does not take effect immediately, please restart the app."],
+            "permission_tip": ["zh": "💡 提示：在弹出系统对话框时，请选择\u{201C}打开系统设置\u{201D}，并勾选\u{201C}Pointrans\u{201D}。开启后如不能立即生效，建议重启本应用。", "en": "💡 Tip: When the system dialog prompts, click 'Open System Settings' and check 'Pointrans'. If it does not take effect immediately, please restart the app."],
             
             // Network warnings
             "net_error_google": ["zh": "⚠️ 网络连接失败。请在设置中查看离线词包状态。", "en": "⚠️ Network error. Please check offline dictionary in Settings."],

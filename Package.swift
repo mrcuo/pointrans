@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "PointTrans",
+    name: "Pointrans",
     platforms: [
         .macOS(.v15)
     ],
     products: [
-        .executable(name: "PointTrans", targets: ["PointTrans"])
+        .executable(name: "Pointrans", targets: ["Pointrans"])
     ],
     targets: [
         .executableTarget(
-            name: "PointTrans",
-            path: "Sources/PointTrans",
+            name: "Pointrans",
+            path: "Sources/Pointrans",
             exclude: ["local_dict.json", "app_icon_transparent.png", "AppIcon.icns"],
             swiftSettings: [
                 .swiftLanguageMode(.v5)

@@ -1,4 +1,4 @@
-# PointTrans (光标翻译)
+# Pointrans (光标翻译)
 
 [English](#english) | [中文](#中文)
 
@@ -6,12 +6,12 @@
 
 ## English
 
-**PointTrans** is a lightweight, high-performance, and native macOS screen-hover translation tool built using Swift and SwiftUI. It enables you to instantly translate text on your screen (English $\leftrightarrow$ Chinese) by simply holding a modifier key and hovering your cursor over any word.
+**Pointrans** is a lightweight, high-performance, and native macOS screen-hover translation tool built using Swift and SwiftUI. It enables you to instantly translate text on your screen (English $\leftrightarrow$ Chinese) by simply holding a modifier key and hovering your cursor over any word.
 
 It combines the speed of local OCR and instant translation APIs with the semantic depth of modern LLMs (Gemini / OpenAI / DeepSeek) to give you context-aware definitions.
 
 > [!NOTE]
-> PointTrans does not require system-wide accessibility permissions, making it extremely secure and lightweight to use.
+> Pointrans does not require system-wide accessibility permissions, making it extremely secure and lightweight to use.
 
 ---
 
@@ -33,12 +33,12 @@ It combines the speed of local OCR and instant translation APIs with the semanti
 
 ### 📦 Installation & Setup
 
-1. **Download & Mount**: Open `PointTrans.dmg` and drag `PointTrans.app` to your `Applications` folder.
-2. **Launch**: Open `PointTrans` from Launchpad or Applications. A `translate` icon will appear in your macOS status menu bar.
+1. **Download & Mount**: Open `Pointrans.dmg` and drag `Pointrans.app` to your `Applications` folder.
+2. **Launch**: Open `Pointrans` from Launchpad or Applications. A `translate` icon will appear in your macOS status menu bar.
 3. **Screen Recording Permission**: 
    - When you first hover-translate, a system dialog will prompt you to authorize Screen Recording.
    - Alternatively, click the menu bar icon -> **Settings...** -> **System Permissions** tab.
-   - Click **Request Permission**. In the macOS System Settings dialog, toggle the switch next to **PointTrans** to enabled.
+   - Click **Request Permission**. In the macOS System Settings dialog, toggle the switch next to **Pointrans** to enabled.
    - Restart the application to ensure permissions take effect immediately.
 
 > [!IMPORTANT]
@@ -53,8 +53,8 @@ It combines the speed of local OCR and instant translation APIs with the semanti
 To compile the application locally:
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/PointTrans.git
-cd PointTrans
+git clone https://github.com/mrcuo/pointrans.git
+cd pointrans
 
 # Make build executable
 chmod +x build.sh package.sh
@@ -62,7 +62,7 @@ chmod +x build.sh package.sh
 # Compile and package as DMG
 ./package.sh
 ```
-This generates `PointTrans.dmg` in the repository root.
+This generates `Pointrans.dmg` in the repository root.
 
 ---
 
@@ -70,12 +70,12 @@ This generates `PointTrans.dmg` in the repository root.
 
 ## 中文
 
-**PointTrans (光标翻译)** 是一款基于 Swift 和 SwiftUI 构建的 macOS 原生、高性能、轻量化光标悬停翻译工具。只需按住自定义修饰键（如 Command）并在单词上悬停鼠标，即可瞬间将屏幕上任意位置的中英文单词进行互译。
+**Pointrans (光标翻译)** 是一款基于 Swift 和 SwiftUI 构建的 macOS 原生、高性能、轻量化光标悬停翻译工具。只需按住自定义修饰键（如 Command）并在单词上悬停鼠标，即可瞬间将屏幕上任意位置的中英文单词进行互译。
 
 本软件结合了本地 OCR 的高响应度、快速网页翻译，以及大语言模型（Gemini / OpenAI / DeepSeek）的上下文理解能力，提供融合前后语境的“深度翻译”解析。
 
 > [!NOTE]
-> PointTrans 无需开启系统敏感的“辅助功能(Accessibility)”权限，保障您的系统安全与隐私。
+> Pointrans 无需开启系统敏感的“辅助功能(Accessibility)”权限，保障您的系统安全与隐私。
 
 ---
 
@@ -97,12 +97,12 @@ This generates `PointTrans.dmg` in the repository root.
 
 ### 📦 安装与配置
 
-1. **双击安装**：双击打开生成的 `PointTrans.dmg`，将 `PointTrans` 图标拖拽至右侧的 `Applications` 应用程序文件夹。
+1. **双击安装**：双击打开生成的 `Pointrans.dmg`，将 `Pointrans` 图标拖拽至右侧的 `Applications` 应用程序文件夹。
 2. **启动软件**：在启动台或应用程序中打开，状态栏（屏幕右上角）将出现翻译图标。
 3. **授予权限**：
    - 首次触发翻译时，系统会弹出原生“录屏”授权申请。
    - 或者点击菜单栏图标 -> **设置...** -> 选择 **系统权限** 标签页。
-   - 点击 **点击申请屏幕录制权限**，在系统弹窗中选择打开系统设置，并勾选启用 **PointTrans**。
+   - 点击 **点击申请屏幕录制权限**，在系统弹窗中选择打开系统设置，并勾选启用 **Pointrans**。
    - 建议重启软件以确保权限完全生效。
 
 > [!IMPORTANT]
@@ -117,8 +117,8 @@ This generates `PointTrans.dmg` in the repository root.
 若需自行编译：
 ```bash
 # 克隆仓库
-git clone https://github.com/your-username/PointTrans.git
-cd PointTrans
+git clone https://github.com/mrcuo/pointrans.git
+cd pointrans
 
 # 开启脚本执行权限
 chmod +x build.sh package.sh
@@ -126,4 +126,4 @@ chmod +x build.sh package.sh
 # 编译并打包为 DMG
 ./package.sh
 ```
-编译成功后，将在根目录下生成可分发的 `PointTrans.dmg` 安装包。
+编译成功后，将在根目录下生成可分发的 `Pointrans.dmg` 安装包。

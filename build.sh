@@ -2,7 +2,7 @@
 set -e
 
 # Define directories
-APP_NAME="PointTrans"
+APP_NAME="Pointrans"
 APP_BUNDLE="${APP_NAME}.app"
 BUILD_DIR=".build"
 
@@ -31,8 +31,8 @@ mkdir -p "${APP_BUNDLE}/Contents/Resources"
 # Copy binary & resources
 cp "$BINARY_PATH" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
 chmod +x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
-cp "Sources/PointTrans/local_dict.json" "${APP_BUNDLE}/Contents/Resources/local_dict.json"
-cp "Sources/PointTrans/AppIcon.icns" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
+cp "Sources/Pointrans/local_dict.json" "${APP_BUNDLE}/Contents/Resources/local_dict.json"
+cp "Sources/Pointrans/AppIcon.icns" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
 
 # Create Info.plist
 cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
@@ -41,11 +41,11 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.tailcasso.PointTrans</string>
+    <string>com.tailcasso.Pointrans</string>
     <key>CFBundleName</key>
-    <string>PointTrans</string>
+    <string>Pointrans</string>
     <key>CFBundleDisplayName</key>
-    <string>PointTrans</string>
+    <string>Pointrans</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>CFBundlePackageType</key>
@@ -55,7 +55,7 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleExecutable</key>
-    <string>PointTrans</string>
+    <string>Pointrans</string>
     <key>LSMinimumSystemVersion</key>
     <string>15.2</string>
     <key>LSUIElement</key>
@@ -63,7 +63,7 @@ cat << 'EOF' > "${APP_BUNDLE}/Contents/Info.plist"
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>PointTrans requires screen recording permission to capture text under the cursor. / PointTrans需要屏幕录制权限以识别鼠标光标处的单词。</string>
+    <string>Pointrans requires screen recording permission to capture text under the cursor. / Pointrans需要屏幕录制权限以识别鼠标光标处的单词。</string>
 </dict>
 </plist>
 EOF

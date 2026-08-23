@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_NAME="PointTrans"
+APP_NAME="Pointrans"
 APP_BUNDLE="${APP_NAME}.app"
 DMG_NAME="${APP_NAME}.dmg"
 

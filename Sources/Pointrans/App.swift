@@ -2,7 +2,7 @@ import Cocoa
 import SwiftUI
 
 @main
-class PointTransApp {
+class PointransApp {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -36,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Set up mouse and keyboard hotkey monitors
         setupEventMonitors()
         
-        print("[App] PointTrans started successfully.")
+        print("[App] Pointrans started successfully.")
     }
     
     private func setupDefaultSettings() {
@@ -179,7 +179,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let year = Calendar.current.component(.year, from: Date())
 
         let alert = NSAlert()
-        alert.messageText = "PointTrans"
+        alert.messageText = "Pointrans"
         alert.informativeText = "\(Localization.string(for: "app_name"))\nVersion \(versionString)\n\n© \(year) Tailcasso"
         alert.alertStyle = .informational
         alert.icon = NSApp.applicationIconImage
