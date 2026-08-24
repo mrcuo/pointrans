@@ -99,7 +99,8 @@ struct TranslationView: View {
                         .font(.system(.body, design: .default))
                         .foregroundColor(.primary)
                         .fixedSize(horizontal: false, vertical: true)
-                    
+                        .textSelection(.enabled)
+
                     if isAIEnabled {
                         if let ai = aiTranslation {
                             Divider()
@@ -111,6 +112,7 @@ struct TranslationView: View {
                                     .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .fixedSize(horizontal: false, vertical: true)
+                                    .textSelection(.enabled)
                             }
                             .frame(maxHeight: 180) // Constrain scroll height for lightness
                         } else if isAILoading {
@@ -163,7 +165,6 @@ struct TranslationView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.primary.opacity(0.15), lineWidth: 0.5)
         )
-        .textSelection(.enabled) // Enable user text selection and copy
     }
 
     /// Renders the AI's Markdown output safely. `LocalizedStringKey` was replaced because it
@@ -180,9 +181,14 @@ struct TranslationView: View {
 
 // MARK: - NSPanel Controller for Floating Window
 class TranslationPanel: NSPanel {
-    
+
     static let shared = TranslationPanel()
-    
+
+    /// A non-activating panel never becomes key by default, and SwiftUI controls (buttons,
+    /// text fields) won't receive clicks unless the window can become key. Overriding this
+    /// lets the panel take key status on click without activating the app.
+    override var canBecomeKey: Bool { true }
+
     private var hostingView: NSHostingView<TranslationView>?
     private var dismissTimer: Timer?
     private var isMouseLocked = false
