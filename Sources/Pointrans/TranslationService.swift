@@ -14,62 +14,14 @@ final class TranslationService {
 
     static let shared = TranslationService()
 
-    private let localDict: [String: [String: String]]
+    private let localDict = LocalDictionary()
     private let cache = TranslationCache()
 
-    private init() {
-        localDict = Self.loadLocalDictionary()
-    }
+    private init() {}
 
-    /// Loads the local fallback dictionary from the App Bundle Resources
-    private static func loadLocalDictionary() -> [String: [String: String]] {
-        guard let url = Bundle.main.url(forResource: "local_dict", withExtension: "json") else {
-            print("[TranslationService] Warning: local_dict.json not found in App Bundle Resources.")
-            return [:]
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            if let dict = try JSONSerialization.jsonObject(with: data) as? [String: [String: String]] {
-                print("[TranslationService] Loaded local dictionary with \(dict["en_to_zh"]?.count ?? 0) EN and \(dict["zh_to_en"]?.count ?? 0) ZH words.")
-                return dict
-            }
-        } catch {
-            print("[TranslationService] Error loading local dictionary: \(error)")
-        }
-        return [:]
-    }
-
-    /// Fallback dictionary lookup. Supports exact matching, English prefixes, and Chinese character substring contains.
+    /// Fallback dictionary lookup (exact hash hit; English falls back to light morphology).
     private func lookupLocal(word: String, direction: String) -> String? {
-        let cleanedWord = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let dictKey = direction == "zh-to-en" ? "zh_to_en" : "en_to_zh"
-
-        guard let subDict = localDict[dictKey], !subDict.isEmpty else { return nil }
-
-        // 1. Exact Match
-        if let translation = subDict[cleanedWord] {
-            return translation
-        }
-
-        // 2. Fuzzy / Morphological Match
-        if direction == "en-to-zh" {
-            for (key, val) in subDict {
-                // If hovered word starts with key (e.g. "setting" -> "settings") or vice-versa
-                if cleanedWord.hasPrefix(key) || key.hasPrefix(cleanedWord) {
-                    return val
-                }
-            }
-        } else {
-            for (key, val) in subDict {
-                // Chinese character subset match
-                if key.contains(cleanedWord) || cleanedWord.contains(key) {
-                    return val
-                }
-            }
-        }
-
-        return nil
+        localDict.lookup(word: word, direction: direction)
     }
 
     /// Quick word translation through a fallback chain: cache -> Google -> Bing -> local
@@ -369,6 +321,78 @@ final class TranslationService {
 
     private func jsonObject(data: Data) -> [String: Any]? {
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+}
+
+/// Loads the offline dictionary (~6MB, ~170k entries) asynchronously on a background thread
+/// so it never blocks launch. Lookups are O(1) hash hits; English falls back to lightweight
+/// suffix stripping for inflected forms. A full-dictionary fuzzy scan was deliberately removed
+/// because it would traverse the whole table on every hover.
+final class LocalDictionary {
+    private var enToZh: [String: String] = [:]
+    private var zhToEn: [String: String] = [:]
+    private let lock = NSLock()
+    private(set) var isLoaded = false
+
+    init() {
+        Task.detached(priority: .utility) {
+            let (en, zh) = Self.loadFromBundle()
+            self.apply(en: en, zh: zh)
+        }
+    }
+
+    private func apply(en: [String: String], zh: [String: String]) {
+        lock.lock()
+        enToZh = en
+        zhToEn = zh
+        isLoaded = true
+        lock.unlock()
+    }
+
+    func lookup(word: String, direction: String) -> String? {
+        let cleaned = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return nil }
+
+        lock.lock()
+        defer { lock.unlock() }
+        guard isLoaded else { return nil }
+
+        if direction == "zh-to-en" {
+            return zhToEn[cleaned]
+        }
+
+        let w = cleaned.lowercased()
+        if let v = enToZh[w] { return v }
+        return inflectedLookup(w)
+    }
+
+    /// English inflected-form fallback (settings -> setting, used -> use, boxes -> box).
+    private func inflectedLookup(_ word: String) -> String? {
+        let stems = ["ing", "ies", "ed", "es", "ly", "s"].compactMap { suffix -> String? in
+            guard word.count > suffix.count + 2, word.hasSuffix(suffix) else { return nil }
+            return String(word.dropLast(suffix.count))
+        }
+        for stem in stems {
+            if let v = enToZh[stem] { return v }
+        }
+        if word.hasSuffix("ies") {
+            let y = String(word.dropLast(3)) + "y"
+            if let v = enToZh[y] { return v }
+        }
+        return nil
+    }
+
+    private static func loadFromBundle() -> ([String: String], [String: String]) {
+        guard let url = Bundle.main.url(forResource: "local_dict", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: [String: String]],
+              let en = root["en_to_zh"],
+              let zh = root["zh_to_en"] else {
+            print("[LocalDictionary] Failed to load local_dict.json.")
+            return ([:], [:])
+        }
+        print("[LocalDictionary] Loaded \(en.count) EN and \(zh.count) ZH entries.")
+        return (en, zh)
     }
 }
 
