@@ -27,8 +27,10 @@ struct Localization {
             "loading_ai": ["zh": "正在翻译及分析语境...", "en": "Translating & analyzing context..."],
             "no_permission": ["zh": "未启用屏幕录制权限", "en": "Screen Recording Permission Disabled"],
             "no_permission_desc": ["zh": "Pointrans 需要屏幕录制权限来识别屏幕上的单词。\n请点击菜单栏图标 -> 设置 -> 系统权限 选项卡，按提示授予权限。", "en": "Pointrans requires screen recording permission to parse words on the screen.\nPlease click the menu bar icon -> Settings -> System Permissions, and grant permission."],
+            "no_accessibility_permission": ["zh": "未启用辅助功能权限", "en": "Accessibility Permission Disabled"],
+            "no_accessibility_permission_desc": ["zh": "Pointrans 需要辅助功能权限以检测修饰键状态。\n请点击菜单栏图标 -> 设置 -> 系统权限 选项卡，按提示授予权限。", "en": "Pointrans requires accessibility permission to detect modifier key states.\nPlease click the menu bar icon -> Settings -> System Permissions, and grant permission."],
             "ai_translation_button": ["zh": "AI 语境翻译", "en": "AI Translation"],
-            
+
             // Menu Items
             "menu_enable": ["zh": "启用翻译功能", "en": "Enable Translation"],
             "menu_mode_direction": ["zh": "翻译方向", "en": "Translation Direction"],
@@ -37,7 +39,7 @@ struct Localization {
             "menu_settings": ["zh": "设置...", "en": "Settings..."],
             "menu_about": ["zh": "关于 Pointrans", "en": "About Pointrans"],
             "menu_quit": ["zh": "退出", "en": "Quit"],
-            
+
             // Settings Window
             "settings_title": ["zh": "设置 - Pointrans", "en": "Settings - Pointrans"],
             "tab_general": ["zh": "常规", "en": "General"],
@@ -74,10 +76,19 @@ struct Localization {
             
             // Permissions
             "permission_title": ["zh": "权限设置", "en": "Permission Settings"],
-            "permission_desc": ["zh": "本软件采用屏幕截图加本地 Vision 文本识别 (OCR) 技术实现。为此，软件需要系统屏幕录制权限。截图仅在本地内存中处理，绝对不会保存或上传。", "en": "This software captures a small screen region and runs offline OCR (Vision framework) in memory to detect text. Thus, it requires Screen Recording permission. Images are never saved or uploaded."],
-            "permission_granted": ["zh": "已获得屏幕录制权限", "en": "Screen Recording permission granted"],
-            "permission_not_granted": ["zh": "未获得权限", "en": "Permission not granted"],
-            "permission_btn_request": ["zh": "点击申请屏幕录制权限", "en": "Click to request permission"],
+            "permission_desc": ["zh": "本软件需要以下两项系统权限才能正常工作。所有数据处理均在本地内存中完成，绝对不会保存或上传任何内容。", "en": "This software requires the following two system permissions to function. All data processing is done locally in memory, and nothing is ever saved or uploaded."],
+            "permission_accessibility_title": ["zh": "辅助功能权限 (按键检测)", "en": "Accessibility Permission (Key Detection)"],
+            "permission_accessibility_desc": ["zh": "Pointrans 需要此权限来实时检测全局键盘修饰键（如 Command, Option, Control, Shift）的按下状态。没有该权限，按住修饰键将没有任何反应。即使在后台，该权限也是必不可少的。", "en": "Pointrans requires this permission to monitor the state of modifier keys (Command, Option, Control, Shift) system-wide. Without this permission, pressing key will do nothing. This is required even when in background."],
+            "permission_accessibility_granted": ["zh": "已获得辅助功能权限", "en": "Accessibility permission granted"],
+            "permission_accessibility_not_granted": ["zh": "未获得辅助功能权限", "en": "Accessibility permission not granted"],
+            "permission_accessibility_btn_request": ["zh": "点击申请辅助功能权限", "en": "Request Accessibility Permission"],
+
+            "permission_screen_title": ["zh": "屏幕录制权限 (文本提取)", "en": "Screen Recording Permission (Text Extraction)"],
+            "permission_screen_desc": ["zh": "Pointrans 需要此权限来对光标周围区域进行图像截取，并使用系统本地 Vision 框架进行文字识别 (OCR)。没有该权限，将无法提取单词进行翻译。", "en": "Pointrans requires this permission to capture the screen region around the cursor and extract text using the local Vision OCR framework. Without this permission, words cannot be extracted."],
+            "permission_screen_granted": ["zh": "已获得屏幕录制权限", "en": "Screen Recording permission granted"],
+            "permission_screen_not_granted": ["zh": "未获得屏幕录制权限", "en": "Screen Recording permission not granted"],
+            "permission_screen_btn_request": ["zh": "点击申请屏幕录制权限", "en": "Request Screen Recording Permission"],
+
             "permission_btn_check": ["zh": "重新检查权限状态", "en": "Re-check permission status"],
             "permission_tip": ["zh": "💡 提示：在弹出系统对话框时，请选择\u{201C}打开系统设置\u{201D}，并勾选\u{201C}Pointrans\u{201D}。开启后如不能立即生效，建议重启本应用。", "en": "💡 Tip: When the system dialog prompts, click 'Open System Settings' and check 'Pointrans'. If it does not take effect immediately, please restart the app."],
             

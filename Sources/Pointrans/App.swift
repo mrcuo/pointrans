@@ -29,16 +29,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Initialize default settings if not already set
         setupDefaultSettings()
-        
+
         // Build status bar menu
         setupMenuBar()
-        
+
+        // Check and request accessibility permission
+        checkAndRequestAccessibilityOnLaunch()
+
         // Set up mouse and keyboard hotkey monitors
         setupEventMonitors()
         
         print("[App] Pointrans started successfully.")
     }
-    
+
     private func setupDefaultSettings() {
         let preferredLang = Locale.preferredLanguages.first?.lowercased() ?? "en"
         let defaultMode = preferredLang.hasPrefix("zh") ? "en-to-zh" : "zh-to-en"
@@ -177,7 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let alert = NSAlert()
         alert.messageText = "Pointrans"
-        alert.informativeText = "\(Localization.string(for: "app_name"))\nVersion \(versionString)\n\n© \(year) Tailcasso"
+        alert.informativeText = "\(Localization.string(for: "app_name"))\nVersion \(versionString)\n\n© \(year) CuoStudio"
         alert.alertStyle = .informational
         alert.icon = NSApp.applicationIconImage
         alert.addButton(withTitle: Localization.string(for: "ok"))
@@ -341,7 +344,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
             alert.addButton(withTitle: Localization.string(for: "menu_quit"))
-            
+
             let response = alert.runModal()
             if response == .alertSecondButtonReturn {
                 NSApp.terminate(nil)
@@ -349,5 +352,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         
         isShowingAlert = false
+    }
+
+    private func checkAndRequestAccessibilityOnLaunch() {
+        if !AXIsProcessTrusted() {
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            AXIsProcessTrustedWithOptions(options)
+
+            // Show alert dialog to explain why it is requested
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                let alert = NSAlert()
+                alert.messageText = Localization.string(for: "no_accessibility_permission")
+                alert.informativeText = Localization.string(for: "no_accessibility_permission_desc")
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
     }
 }

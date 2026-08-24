@@ -185,47 +185,83 @@ struct AITab: View {
 
 // MARK: - Permissions Settings Tab
 struct PermissionsTab: View {
-    @State private var hasPermission = false
+    @State private var hasAccessibility = false
+    @State private var hasScreenCapture = false
 
     var body: some View {
         Form {
-            Section(Localization.string(for: "permission_title")) {
+            Section {
                 Text(Localization.string(for: "permission_desc"))
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .lineSpacing(3.5)
+            }
+
+            Section(header: Text(Localization.string(for: "permission_accessibility_title"))) {
+                Text(Localization.string(for: "permission_accessibility_desc"))
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
 
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(hasPermission ? Color.green : Color.red)
+                        .fill(hasAccessibility ? Color.green : Color.red)
                         .frame(width: 8, height: 8)
-                    Text(hasPermission
-                         ? Localization.string(for: "permission_granted")
-                         : Localization.string(for: "permission_not_granted"))
-                        .font(.system(size: 13, weight: .semibold))
+                    Text(hasAccessibility
+                         ? Localization.string(for: "permission_accessibility_granted")
+                         : Localization.string(for: "permission_accessibility_not_granted"))
+                        .font(.system(size: 12, weight: .semibold))
                 }
+                .padding(.vertical, 2)
 
-                if !hasPermission {
-                    Button(action: checkAndRequestPermission) {
-                        Text(Localization.string(for: "permission_btn_request"))
+                if !hasAccessibility {
+                    Button(action: requestAccessibility) {
+                        Text(Localization.string(for: "permission_accessibility_btn_request"))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                }
+            }
 
-                    Text(Localization.string(for: "permission_tip"))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Button(action: checkPermissionStatus) {
-                        Text(Localization.string(for: "permission_btn_check"))
+            Section(header: Text(Localization.string(for: "permission_screen_title"))) {
+                Text(Localization.string(for: "permission_screen_desc"))
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
+
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(hasScreenCapture ? Color.green : Color.red)
+                        .frame(width: 8, height: 8)
+                    Text(hasScreenCapture
+                         ? Localization.string(for: "permission_screen_granted")
+                         : Localization.string(for: "permission_screen_not_granted"))
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .padding(.vertical, 2)
+
+                if !hasScreenCapture {
+                    Button(action: requestScreenCapture) {
+                        Text(Localization.string(for: "permission_screen_btn_request"))
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(.borderedProminent)
                 }
+            }
+
+            Section {
+                Button(action: checkPermissionStatus) {
+                    Text(Localization.string(for: "permission_btn_check"))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Text(Localization.string(for: "permission_tip"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
@@ -235,15 +271,31 @@ struct PermissionsTab: View {
     }
 
     private func checkPermissionStatus() {
-        hasPermission = CGPreflightScreenCaptureAccess()
+        hasAccessibility = AXIsProcessTrusted()
+        hasScreenCapture = CGPreflightScreenCaptureAccess()
     }
 
-    private func checkAndRequestPermission() {
-        let granted = CGRequestScreenCaptureAccess()
-        hasPermission = granted
-        if !granted {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+    private func requestAccessibility() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+
+        // Polling status for a few seconds to update UI when granted
+        for delay in [0.5, 1.0, 2.0, 3.0, 5.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 self.checkPermissionStatus()
+            }
+        }
+    }
+
+    private func requestScreenCapture() {
+        let granted = CGRequestScreenCaptureAccess()
+        hasScreenCapture = granted
+        if !granted {
+            // Re-check after a delay because standard system dialog is asynchronous
+            for delay in [1.0, 2.0, 3.0, 5.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    self.checkPermissionStatus()
+                }
             }
         }
     }
