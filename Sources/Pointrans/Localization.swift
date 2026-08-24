@@ -84,7 +84,7 @@ struct Localization {
             "permission_tip": ["zh": "💡 提示：在弹出系统对话框时，请选择\u{201C}打开系统设置\u{201D}，并勾选\u{201C}Pointrans\u{201D}。开启后如不能立即生效，建议重启本应用。", "en": "💡 Tip: When the system dialog prompts, click 'Open System Settings' and check 'Pointrans'. If it does not take effect immediately, please restart the app."],
             
             // Network warnings
-            "net_error_google": ["zh": "⚠️ 网络连接失败。请在设置中查看离线词包状态。", "en": "⚠️ Network error. Please check offline dictionary in Settings."],
+            "net_error_google": ["zh": "未能获取该词的翻译，请稍后重试", "en": "Couldn't get a translation for this word. Please try again."],
             
             // TTS Pronunciation Tooltip
             "pronounce_tooltip": ["zh": "朗读单词", "en": "Pronounce word"],

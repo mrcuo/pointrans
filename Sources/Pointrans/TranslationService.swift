@@ -57,54 +57,67 @@ final class TranslationService {
     private func googleTranslate(word: String, direction: String) async -> GoogleTranslationResult? {
         let sl = direction == "zh-to-en" ? "zh-CN" : "en"
         let tl = direction == "zh-to-en" ? "en" : "zh-CN"
+        guard let encodedWord = word.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
 
-        let endpoint = "https://translate.googleapis.com"
-        guard let encodedWord = word.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(endpoint)/translate_a/single?client=gtx&sl=\(sl)&tl=\(tl)&dt=t&dt=rm&q=\(encodedWord)") else {
+        // Try several Google hosts: the default endpoint can be blocked by regional
+        // networks/firewalls while an alternate host still works.
+        let hosts = [
+            "https://translate.googleapis.com",
+            "https://translate.google.com",
+            "https://clients5.google.com"
+        ]
+
+        for host in hosts {
+            guard let url = URL(string: "\(host)/translate_a/single?client=gtx&sl=\(sl)&tl=\(tl)&dt=t&dt=rm&q=\(encodedWord)") else { continue }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.timeoutInterval = 8.0
+            request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", forHTTPHeaderField: "User-Agent")
+
+            do {
+                let (data, _) = try await URLSession.shared.data(for: request)
+                if let result = Self.parseGoogleResponse(data) {
+                    return result
+                }
+            } catch {
+                print("[TranslationService] Google host failed (\(host)): \(error)")
+            }
+        }
+        return nil
+    }
+
+    /// Parses a Google Translate response (with dt=rm):
+    /// [[["translation", "original", null, null, 1], [null, null, "targetTranslit", "sourceTranslit"]], null, "en"]
+    private static func parseGoogleResponse(_ data: Data) -> GoogleTranslationResult? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [Any],
+              let firstArray = json.first as? [Any] else {
             return nil
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 10.0 // Increased timeout for proxy networks
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36", forHTTPHeaderField: "User-Agent")
+        var fullTranslation = ""
+        var phonetic: String? = nil
 
-        do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+        for part in firstArray {
+            if let partArray = part as? [Any] {
+                if let translatedSegment = partArray.first as? String {
+                    fullTranslation += translatedSegment
+                }
 
-            // Google Translate response format (with dt=rm) is: [[["translation", "original", null, null, 1], [null, null, "targetTranslit", "sourceTranslit"]], null, "en"]
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [Any],
-                  let firstArray = json.first as? [Any] else {
-                return nil
-            }
-
-            var fullTranslation = ""
-            var phonetic: String? = nil
-
-            for part in firstArray {
-                if let partArray = part as? [Any] {
-                    if let translatedSegment = partArray.first as? String {
-                        fullTranslation += translatedSegment
-                    }
-
-                    // Parse transliteration/phonetic of the source word if present (always at index 3)
-                    if partArray.count >= 4 && partArray[0] is NSNull && partArray[1] is NSNull {
-                        if let srcTrans = partArray[3] as? String {
-                            phonetic = srcTrans
-                        }
+                // Transliteration/phonetic of the source word, if present (always at index 3)
+                if partArray.count >= 4 && partArray[0] is NSNull && partArray[1] is NSNull {
+                    if let srcTrans = partArray[3] as? String {
+                        phonetic = srcTrans
                     }
                 }
             }
-
-            guard !fullTranslation.isEmpty else { return nil }
-            return GoogleTranslationResult(
-                translation: fullTranslation.trimmingCharacters(in: .whitespacesAndNewlines),
-                phonetic: phonetic
-            )
-        } catch {
-            print("[TranslationService] Google Translate failed: \(error)")
-            return nil
         }
+
+        guard !fullTranslation.isEmpty else { return nil }
+        return GoogleTranslationResult(
+            translation: fullTranslation.trimmingCharacters(in: .whitespacesAndNewlines),
+            phonetic: phonetic
+        )
     }
 
     /// Free, keyless Bing web translation endpoint used as a secondary fallback.
