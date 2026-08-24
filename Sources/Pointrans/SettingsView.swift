@@ -102,7 +102,6 @@ private enum ConnectionTestResult {
 
 struct AITab: View {
     @AppStorage("aiEnabled") private var aiEnabled = false
-    @AppStorage("deepseekModel") private var deepseekModel = "deepseek-chat"
 
     @State private var isTesting = false
     @State private var testResult: ConnectionTestResult?
@@ -111,13 +110,6 @@ struct AITab: View {
         Form {
             Section(Localization.string(for: "ai_section")) {
                 Toggle(Localization.string(for: "ai_enable"), isOn: $aiEnabled)
-
-                if aiEnabled {
-                    Picker(Localization.string(for: "ai_model"), selection: $deepseekModel) {
-                        Text("deepseek-chat").tag("deepseek-chat")
-                        Text("deepseek-reasoner").tag("deepseek-reasoner")
-                    }
-                }
             }
 
             if aiEnabled {
@@ -175,7 +167,6 @@ struct AITab: View {
             }
         }
         .formStyle(.grouped)
-        .onChange(of: deepseekModel) { _, _ in testResult = nil }
     }
 
     private func runConnectionTest() {

@@ -66,9 +66,6 @@ struct Localization {
             
             "ai_section": ["zh": "AI 语境配置", "en": "AI Context Configurations"],
             "ai_enable": ["zh": "启用 AI 语境翻译 (深度解析)", "en": "Enable AI Context Translation"],
-            "ai_provider": ["zh": "AI 服务商", "en": "AI Provider"],
-            "ai_model": ["zh": "模型名称", "en": "Model Name"],
-            "ai_endpoint": ["zh": "API 节点 (Endpoint)", "en": "API Endpoint"],
             "ai_key_warning": ["zh": "⚠️ 请在设置中配置 API Key", "en": "⚠️ Please configure API Key in settings"],
             "ai_key_not_configured": ["zh": "API Key 未配置：请在源码的 Sources/Secrets.swift 中填入 DeepSeek API Key", "en": "API key not configured. Add your DeepSeek API key in Sources/Secrets.swift"],
             
@@ -95,7 +92,6 @@ struct Localization {
             "testing_connection": ["zh": "正在测试连接...", "en": "Testing connection..."],
             "test_success": ["zh": "连接成功", "en": "Connection Successful"],
             "test_failed": ["zh": "连接失败", "en": "Connection Failed"],
-            "ai_api_key": ["zh": "API Key", "en": "API Key"],
             "ok": ["zh": "好", "en": "OK"]
         ]
     

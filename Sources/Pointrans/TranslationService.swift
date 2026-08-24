@@ -192,7 +192,7 @@ final class TranslationService {
         return await callOpenAICompatibleAPI(
             endpoint: "https://api.deepseek.com/chat/completions",
             apiKey: apiKey,
-            model: UserDefaults.standard.string(forKey: "deepseekModel") ?? "deepseek-chat",
+            model: "deepseek-v4-flash",
             label: "DeepSeek",
             prompt: prompt
         )
