@@ -102,16 +102,6 @@ private enum ConnectionTestResult {
 
 struct AITab: View {
     @AppStorage("aiEnabled") private var aiEnabled = false
-    @AppStorage("aiProvider") private var aiProvider = "gemini"
-
-    @AppStorage("geminiApiKey") private var geminiApiKey = ""
-    @AppStorage("geminiModel") private var geminiModel = "gemini-2.5-flash"
-
-    @AppStorage("openaiApiKey") private var openaiApiKey = ""
-    @AppStorage("openaiEndpoint") private var openaiEndpoint = "https://api.openai.com/v1/chat/completions"
-    @AppStorage("openaiModel") private var openaiModel = "gpt-4o-mini"
-
-    @AppStorage("deepseekApiKey") private var deepseekApiKey = ""
     @AppStorage("deepseekModel") private var deepseekModel = "deepseek-chat"
 
     @State private var isTesting = false
@@ -123,41 +113,19 @@ struct AITab: View {
                 Toggle(Localization.string(for: "ai_enable"), isOn: $aiEnabled)
 
                 if aiEnabled {
-                    Picker(Localization.string(for: "ai_provider"), selection: $aiProvider) {
-                        Text("Google Gemini").tag("gemini")
-                        Text("DeepSeek").tag("deepseek")
-                        Text("OpenAI").tag("openai")
+                    Picker(Localization.string(for: "ai_model"), selection: $deepseekModel) {
+                        Text("deepseek-chat").tag("deepseek-chat")
+                        Text("deepseek-reasoner").tag("deepseek-reasoner")
                     }
-                    .pickerStyle(.segmented)
                 }
             }
 
             if aiEnabled {
-                if aiProvider == "gemini" {
-                    Section("Gemini") {
-                        SecureField(Localization.string(for: "ai_api_key"), text: $geminiApiKey)
-
-                        Picker(Localization.string(for: "ai_model"), selection: $geminiModel) {
-                            Text("gemini-2.5-flash").tag("gemini-2.5-flash")
-                            Text("gemini-2.5-pro").tag("gemini-2.5-pro")
-                        }
-                    }
-                } else if aiProvider == "deepseek" {
-                    Section("DeepSeek") {
-                        SecureField(Localization.string(for: "ai_api_key"), text: $deepseekApiKey)
-
-                        Picker(Localization.string(for: "ai_model"), selection: $deepseekModel) {
-                            Text("deepseek-chat").tag("deepseek-chat")
-                            Text("deepseek-reasoner").tag("deepseek-reasoner")
-                        }
-                    }
-                } else {
-                    Section("OpenAI") {
-                        SecureField(Localization.string(for: "ai_api_key"), text: $openaiApiKey)
-
-                        TextField(Localization.string(for: "ai_endpoint"), text: $openaiEndpoint)
-
-                        TextField(Localization.string(for: "ai_model"), text: $openaiModel)
+                if Secrets.deepSeekApiKey.isEmpty {
+                    Section {
+                        Text(Localization.string(for: "ai_key_not_configured"))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
                     }
                 }
 
@@ -177,7 +145,7 @@ struct AITab: View {
                             Spacer()
                         }
                     }
-                    .disabled(isTesting || keyIsEmpty)
+                    .disabled(isTesting || Secrets.deepSeekApiKey.isEmpty)
 
                     if let result = testResult {
                         HStack {
@@ -207,21 +175,7 @@ struct AITab: View {
             }
         }
         .formStyle(.grouped)
-        .onChange(of: aiProvider) { _, _ in testResult = nil }
-        .onChange(of: geminiApiKey) { _, _ in testResult = nil }
-        .onChange(of: openaiApiKey) { _, _ in testResult = nil }
-        .onChange(of: openaiEndpoint) { _, _ in testResult = nil }
-        .onChange(of: openaiModel) { _, _ in testResult = nil }
-        .onChange(of: deepseekApiKey) { _, _ in testResult = nil }
         .onChange(of: deepseekModel) { _, _ in testResult = nil }
-    }
-
-    private var keyIsEmpty: Bool {
-        switch aiProvider {
-        case "gemini": return geminiApiKey.isEmpty
-        case "deepseek": return deepseekApiKey.isEmpty
-        default: return openaiApiKey.isEmpty
-        }
     }
 
     private func runConnectionTest() {

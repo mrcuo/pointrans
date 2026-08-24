@@ -4,3 +4,6 @@
 *.dmg
 .swiftpm/
 Package.resolved
+
+# Local API key — never commit
+Sources/Pointrans/Secrets.swift

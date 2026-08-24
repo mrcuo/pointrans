@@ -70,6 +70,7 @@ struct Localization {
             "ai_model": ["zh": "模型名称", "en": "Model Name"],
             "ai_endpoint": ["zh": "API 节点 (Endpoint)", "en": "API Endpoint"],
             "ai_key_warning": ["zh": "⚠️ 请在设置中配置 API Key", "en": "⚠️ Please configure API Key in settings"],
+            "ai_key_not_configured": ["zh": "API Key 未配置：请在源码的 Sources/Secrets.swift 中填入 DeepSeek API Key", "en": "API key not configured. Add your DeepSeek API key in Sources/Secrets.swift"],
             
             // Offline dictionary
             "offline_local_badge": ["zh": "[本地离线]", "en": "[Offline]"],

@@ -183,95 +183,22 @@ final class TranslationService {
         }
     }
 
-    /// Dispatches a prompt to whichever AI provider is currently selected.
+    /// Runs the prompt through the built-in DeepSeek provider. The API key comes from the
+    /// git-ignored Secrets.swift, falling back to a key previously stored in UserDefaults.
     private func aiResult(for prompt: String) async -> AIResult {
-        let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "gemini"
+        let storedKey = UserDefaults.standard.string(forKey: "deepseekApiKey") ?? ""
+        let apiKey = Secrets.deepSeekApiKey.isEmpty ? storedKey : Secrets.deepSeekApiKey
 
-        switch provider {
-        case "deepseek":
-            return await callOpenAICompatibleAPI(
-                endpoint: UserDefaults.standard.string(forKey: "deepseekEndpoint") ?? "https://api.deepseek.com/chat/completions",
-                apiKey: UserDefaults.standard.string(forKey: "deepseekApiKey") ?? "",
-                model: UserDefaults.standard.string(forKey: "deepseekModel") ?? "deepseek-chat",
-                label: "DeepSeek",
-                prompt: prompt
-            )
-        case "openai":
-            return await callOpenAICompatibleAPI(
-                endpoint: UserDefaults.standard.string(forKey: "openaiEndpoint") ?? "https://api.openai.com/v1/chat/completions",
-                apiKey: UserDefaults.standard.string(forKey: "openaiApiKey") ?? "",
-                model: UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o-mini",
-                label: "OpenAI",
-                prompt: prompt
-            )
-        default:
-            return await callGeminiAPI(prompt: prompt)
-        }
+        return await callOpenAICompatibleAPI(
+            endpoint: "https://api.deepseek.com/chat/completions",
+            apiKey: apiKey,
+            model: UserDefaults.standard.string(forKey: "deepseekModel") ?? "deepseek-chat",
+            label: "DeepSeek",
+            prompt: prompt
+        )
     }
 
-    private func callGeminiAPI(prompt: String) async -> AIResult {
-        let apiKey = UserDefaults.standard.string(forKey: "geminiApiKey") ?? ""
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
-
-        guard !apiKey.isEmpty else {
-            return .failure(Localization.string(for: "ai_key_warning"))
-        }
-
-        let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        guard let url = URL(string: endpoint) else {
-            return .failure("⚠️ Invalid endpoint")
-        }
-
-        let payload: [String: Any] = [
-            "contents": [
-                [
-                    "parts": [
-                        ["text": prompt]
-                    ]
-                ]
-            ],
-            "generationConfig": [
-                "temperature": 0.2
-            ]
-        ]
-
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
-            return .failure("⚠️ Invalid request payload")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30.0
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
-        request.httpBody = httpBody
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                let errorMsg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
-                print("[TranslationService] Gemini Error Code: \(httpResponse.statusCode), body: \(errorMsg)")
-                return .failure("⚠️ Gemini API Error: \(httpResponse.statusCode)")
-            }
-
-            if let json = jsonObject(data: data),
-               let candidates = json["candidates"] as? [[String: Any]],
-               let firstCandidate = candidates.first,
-               let content = firstCandidate["content"] as? [String: Any],
-               let parts = content["parts"] as? [[String: Any]],
-               let firstPart = parts.first,
-               let text = firstPart["text"] as? String {
-                return .success(text.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-            return .failure("⚠️ Gemini response format error")
-        } catch {
-            print("[TranslationService] Gemini network error: \(error)")
-            return .failure("⚠️ Gemini offline / timeout")
-        }
-    }
-
-    /// Shared OpenAI-compatible chat-completions caller, used by both OpenAI and DeepSeek.
+    /// Shared OpenAI-compatible chat-completions caller, used by the built-in DeepSeek provider.
     private func callOpenAICompatibleAPI(endpoint: String, apiKey: String, model: String, label: String, prompt: String) async -> AIResult {
         guard !apiKey.isEmpty else {
             return .failure(Localization.string(for: "ai_key_warning"))
