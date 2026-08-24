@@ -93,39 +93,26 @@ class TextExtractor {
                 height: lineBox.size.height + (verticalPadding * 2)
             )
 
-            // If the cursor is vertically and horizontally inside this line's box
+            // If the cursor is inside this line's box
             if expandedLineBox.contains(targetPoint) {
                 let tokenizedWords = tokenize(lineText, mode: mode)
-                
+
+                // Pick the word whose center is horizontally closest to the cursor. A hard
+                // box-edge hit (minX/maxX) feels off-target when the cursor sits in the gap
+                // between words or next to punctuation (slashes, dots), so center distance
+                // is a better match for visual intent.
                 for wordInfo in tokenizedWords {
-                    do {
-                        if let wordBox = try candidate.boundingBox(for: wordInfo.range) {
-                            let box = wordBox.boundingBox
-                            
-                            // Check if cursor x-coordinate is within word's horizontal bounds
-                            if targetPoint.x >= box.minX && targetPoint.x <= box.maxX {
-                                bestWord = wordInfo.word
-                                bestContext = lineText
-                                break
-                            }
-                            
-                            // Otherwise record the closest word by center distance
-                            let centerX = box.midX
-                            let distance = abs(targetPoint.x - centerX)
-                            if distance < closestDistance {
-                                closestDistance = distance
-                                bestWord = wordInfo.word
-                                bestContext = lineText
-                            }
-                        }
-                    } catch {
-                        print("[TextExtractor] Error getting bounding box for word: \(error)")
+                    guard let wordBox = try? candidate.boundingBox(for: wordInfo.range) else { continue }
+                    let centerX = wordBox.boundingBox.midX
+                    let distance = abs(targetPoint.x - centerX)
+                    if distance < closestDistance {
+                        closestDistance = distance
+                        bestWord = wordInfo.word
+                        bestContext = lineText
                     }
                 }
-                
-                if bestWord != nil {
-                    break
-                }
+
+                break
             }
         }
 

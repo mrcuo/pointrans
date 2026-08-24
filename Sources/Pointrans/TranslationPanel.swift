@@ -123,10 +123,8 @@ struct TranslationView: View {
                                     .foregroundColor(.secondary)
                             }
                             .padding(.top, 4)
-                        } else {
-                            Button(action: {
-                                onFetchAI?()
-                            }) {
+                        } else if let onFetchAI {
+                            Button(action: onFetchAI) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "sparkles")
                                     Text(Localization.string(for: "ai_translation_button"))

@@ -242,13 +242,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let word = extracted.word
             let context = extracted.context
 
-            // 3. Show floating window in loading state
+            // 3. Show the panel immediately: local dictionary result if available (instant),
+            //    otherwise the loading state. The online result replaces it as soon as it arrives.
+            let local = TranslationService.shared.localTranslate(word: word, direction: activeMode)
             TranslationPanel.shared.show(
                 at: mousePoint,
                 word: word,
                 context: context,
-                googleResult: nil,
-                phonetic: nil,
+                googleResult: local?.translation,
+                phonetic: local?.phonetic,
                 aiResult: nil,
                 aiEnabled: isAiEnabled,
                 isAILoading: false,
@@ -256,9 +258,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onFetchAI: nil
             )
 
-            // 4. Fetch translations asynchronously
-            let googleTrans = await TranslationService.shared.translateWithGoogle(word: word, direction: activeMode)
+            // 4. Fetch online translation and swap it in the moment it lands
+            let online = await TranslationService.shared.translateOnline(word: word, direction: activeMode)
             guard generation == translationGeneration else { return }
+
+            // The Google line to keep showing: online result, else the local fallback already
+            // on screen, else a clear network error message.
+            let finalGoogle: GoogleTranslationResult
+            if let online {
+                finalGoogle = online
+            } else if let local {
+                finalGoogle = local
+            } else {
+                finalGoogle = GoogleTranslationResult(
+                    translation: Localization.string(for: "net_error_google"),
+                    phonetic: nil
+                )
+            }
 
             let fetchAI: () -> Void = { [weak self] in
                 guard let self else { return }
@@ -269,8 +285,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         TranslationPanel.shared.update(
                             word: word,
                             context: context,
-                            googleResult: googleTrans?.translation,
-                            phonetic: googleTrans?.phonetic,
+                            googleResult: finalGoogle.translation,
+                            phonetic: finalGoogle.phonetic,
                             aiResult: nil,
                             aiEnabled: isAiEnabled,
                             isAILoading: true,
@@ -286,8 +302,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         TranslationPanel.shared.update(
                             word: word,
                             context: context,
-                            googleResult: googleTrans?.translation,
-                            phonetic: googleTrans?.phonetic,
+                            googleResult: finalGoogle.translation,
+                            phonetic: finalGoogle.phonetic,
                             aiResult: aiTrans,
                             aiEnabled: isAiEnabled,
                             isAILoading: false,
@@ -302,8 +318,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 TranslationPanel.shared.update(
                     word: word,
                     context: context,
-                    googleResult: googleTrans?.translation,
-                    phonetic: googleTrans?.phonetic,
+                    googleResult: finalGoogle.translation,
+                    phonetic: finalGoogle.phonetic,
                     aiResult: nil,
                     aiEnabled: isAiEnabled,
                     isAILoading: false,

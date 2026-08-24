@@ -24,10 +24,17 @@ final class TranslationService {
         localDict.lookup(word: word, direction: direction)
     }
 
-    /// Quick word translation through a fallback chain: cache -> Google -> Bing -> local
-    /// dictionary -> user-facing error message. Only successful results are cached, so a
-    /// transient network failure never permanently poisons the cache.
-    func translateWithGoogle(word: String, direction: String) async -> GoogleTranslationResult? {
+    /// Immediate local-dictionary result, or nil if the word is not covered. Shown instantly
+    /// and then superseded by `translateOnline` once that returns.
+    func localTranslate(word: String, direction: String) -> GoogleTranslationResult? {
+        guard let translation = lookupLocal(word: word, direction: direction) else { return nil }
+        let badge = Localization.string(for: "offline_local_badge")
+        return GoogleTranslationResult(translation: "\(badge) \(translation)", phonetic: nil)
+    }
+
+    /// Online translation (cache -> Google -> Bing). Returns nil when every online endpoint
+    /// fails; the caller decides how to degrade. Successful results are cached.
+    func translateOnline(word: String, direction: String) async -> GoogleTranslationResult? {
         let trimmedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedWord.isEmpty else { return nil }
 
@@ -36,31 +43,15 @@ final class TranslationService {
             return cached
         }
 
-        // 1. Google (primary)
         if let result = await googleTranslate(word: trimmedWord, direction: direction) {
             cache.set(result, for: cacheKey)
             return result
         }
-
-        // 2. Bing (fallback when Google is blocked/limited)
         if let result = await bingTranslate(word: trimmedWord, direction: direction) {
             cache.set(result, for: cacheKey)
             return result
         }
-
-        // 3. Local offline dictionary
-        if let localTrans = lookupLocal(word: trimmedWord, direction: direction) {
-            let badge = Localization.string(for: "offline_local_badge")
-            let result = GoogleTranslationResult(translation: "\(badge) \(localTrans)", phonetic: nil)
-            cache.set(result, for: cacheKey)
-            return result
-        }
-
-        // 4. All endpoints failed: surface a clear message (never a blank panel)
-        return GoogleTranslationResult(
-            translation: Localization.string(for: "net_error_google"),
-            phonetic: nil
-        )
+        return nil
     }
 
     private func googleTranslate(word: String, direction: String) async -> GoogleTranslationResult? {
