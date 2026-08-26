@@ -35,4 +35,4 @@
 - 本地候选：15/15 tests 通过；生产部署前必须确认 Cloudflare 账户套餐与共享容量，再以已提交的完整 Git SHA 部署并通过 `/health`、`/version` 精确身份核验。
 - Durable Object migration、匿名安装 HMAC 令牌、UTC 日额度和 IP 限流均已部署。
 - `INSTALLATION_SECRET` 与 `DEEPSEEK_API_KEY` 均以 Cloudflare encrypted secret 保存；仓库和 DMG 中不包含 Secret。
-- 生产端到端验收：`POST /v1/installations` 可签发匿名令牌；截至 2026-08-25 最终复测，`POST /v1/context` 返回 HTTP 503 / `upstream_unavailable`。此前的脱敏诊断确认 DeepSeek 上游返回 HTTP 402，因此云端 AI 尚未完成生产端到端验收；Worker 会退还本次预约额度。需要恢复该 DeepSeek API 账户的计费/余额，再部署带精确版本身份的候选并重跑 `node scripts/verify-production-worker.mjs`。
+- 生产端到端验收：2026-08-27 使用固定测试词和固定句子复测，`POST /v1/installations` 返回 201，`POST /v1/context` 返回 200，`ContextInsight` 结构有效，云端 AI 已恢复。探针未发送截图、应用信息或用户内容。
