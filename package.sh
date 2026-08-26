@@ -1,27 +1,13 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-APP_NAME="Pointrans"
-APP_BUNDLE="${APP_NAME}.app"
-DMG_NAME="${APP_NAME}.dmg"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/scripts/create-dmg.sh"
+"$SCRIPT_DIR/scripts/verify-delivery.sh"
 
-echo "=== Building application ==="
-./build.sh
-
-echo "=== Creating DMG package ==="
-rm -f "$DMG_NAME"
-
-# Create a temporary staging directory
-TMP_DIR=$(mktemp -d -t pointtrans-dmg-stage)
-cp -R "$APP_BUNDLE" "$TMP_DIR/"
-
-# Create a symlink to Applications directory so the user can easily install by dragging and dropping
-ln -s /Applications "$TMP_DIR/Applications"
-
-# Create the DMG file using hdiutil
-hdiutil create -volname "${APP_NAME}" -srcfolder "$TMP_DIR" -ov -format UDZO "$DMG_NAME"
-
-# Clean up temporary directory
-rm -rf "$TMP_DIR"
-
-echo "=== DMG Package Created Successfully: ${DMG_NAME} ==="
+if [[ "${AUTO_INSTALL_LATEST:-1}" == "1" ]]; then
+  "$SCRIPT_DIR/scripts/install-latest.sh" "$SCRIPT_DIR/dist/Pointrans.app"
+  if [[ "${KEEP_BUILD_ARTIFACTS:-0}" != "1" ]]; then
+    "$SCRIPT_DIR/scripts/cleanup-pointrans-copies.sh"
+  fi
+fi

@@ -1,0 +1,17 @@
+{
+  "name": "pointrans-worker",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "../scripts/deploy-worker.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260823.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
+  }
+}

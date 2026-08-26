@@ -1,9 +1,18 @@
 .DS_Store
 .build/
+build/
+dist/
+DerivedData/
 *.app/
 *.dmg
+*.xcresult
 .swiftpm/
 Package.resolved
+xcuserdata/
+Worker/node_modules/
+Worker/.wrangler/
+Worker/.dev.vars
+Worker/.dev.vars.*
 
 # Local API key — never commit
 Sources/Pointrans/Secrets.swift

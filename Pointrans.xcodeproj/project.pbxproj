@@ -1,0 +1,1078 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+		00C45FD35CB0F9C5F764F070 = {
+			isa = PBXGroup;
+			children = (
+				B6CDB6E5D160E013280D3C68,
+				782395792B604A503D86C9E7,
+				6876384C1F14AB301558A48A,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		059B3E6639EAD8E196BBA8C7 = {
+			isa = PBXBuildFile;
+			fileRef = 20AB89B45F871FE7B78CDD16;
+		};
+		06675FBD851C4977B68AFECA = {
+			isa = PBXBuildFile;
+			fileRef = 14F0CC91EEB713082152A741;
+		};
+		099A303041915877C0D7FA9A = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/DictionaryStore.swift";
+			sourceTree = "<group>";
+		};
+		0A11110E1A056C9C50CB91F7 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/PermissionService.swift";
+			sourceTree = "<group>";
+		};
+		0A23DA3EB3A7358D5738C66B = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/BaseTranslationService.swift";
+			sourceTree = "<group>";
+		};
+		0D18ED36004BA2E5DD61DCEF = {
+			isa = PBXBuildFile;
+			fileRef = 7369936DFB646E4197794B08;
+		};
+		0DAA66C8358FF9B491F852A4 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/OCRTextExtractor.swift";
+			sourceTree = "<group>";
+		};
+		0EF38B35986445F85121013E = {
+			isa = PBXBuildFile;
+			fileRef = 1D35105270A589302E4231BF;
+		};
+		0F3961357C10A2DC2B3382F6 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.json.xcstrings;
+			path = "Localizable.xcstrings";
+			sourceTree = "<group>";
+		};
+		10352F5ED42FC6452E3141ED = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/ContextAnalyzer.swift";
+			sourceTree = "<group>";
+		};
+		11E73C9EC21DA127938E2F8F = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/HoverIntentMachine.swift";
+			sourceTree = "<group>";
+		};
+		1236EACEDC1D43017F1AAD58 = {
+			isa = PBXBuildFile;
+			fileRef = 5B4A15BF3D524E4D2F85EF03;
+		};
+		14F0CC91EEB713082152A741 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "PointransApplication.swift";
+			sourceTree = "<group>";
+		};
+		1507FF46E9C9E5EC4AE0DCB1 = {
+			isa = PBXBuildFile;
+			fileRef = B19FB2132A16BAB0AF5182E9;
+		};
+		15F69CC809C5D3D4B1BBD856 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.xml;
+			path = "Pointrans.entitlements";
+			sourceTree = "<group>";
+		};
+		164A38BBEA052CC47EEE6F6A = {
+			isa = PBXBuildFile;
+			fileRef = 40F0E99E1EC1A70D9E0C7811;
+		};
+		172D61C994C5921E61544B9C = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/CloudContextClient.swift";
+			sourceTree = "<group>";
+		};
+		17D205495E38E6FC173E90E6 = {
+			isa = PBXBuildFile;
+			fileRef = 216781B3D819893AAE663F80;
+		};
+		181BAD9630BB8A5C4C9F1BCE = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder.assetcatalog;
+			path = "Assets.xcassets";
+			sourceTree = "<group>";
+		};
+		1D13D3098D59AD1C232597CD = {
+			isa = PBXBuildFile;
+			fileRef = C86E10D3AB6328E8E16CA8D5;
+		};
+		1D35105270A589302E4231BF = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.text-based-dylib-definition;
+			name = libsqlite3.tbd;
+			path = usr/lib/libsqlite3.tbd;
+			sourceTree = SDKROOT;
+		};
+		2055B93B2F4F7FE73C04FF9B = {
+			isa = PBXBuildFile;
+			fileRef = 8997C1E5215D9CBA285D34FC;
+		};
+		20AB89B45F871FE7B78CDD16 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "UI/ControlCenterView.swift";
+			sourceTree = "<group>";
+		};
+		210A42478B729CD8FA00B47C = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "ContextFallbackPolicyTests.swift";
+			sourceTree = "<group>";
+		};
+		216781B3D819893AAE663F80 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/InstallationIdentity.swift";
+			sourceTree = "<group>";
+		};
+		22D02A9EFAC9B3FBBAEBE062 = {
+			isa = PBXGroup;
+			children = (
+				181BAD9630BB8A5C4C9F1BCE,
+				431D557FDC1D9D7E05D28E83,
+				0F3961357C10A2DC2B3382F6,
+				253446D2A98069B826AA36D4,
+			);
+			path = "Sources/Pointrans/Resources";
+			sourceTree = "<group>";
+		};
+		2366BAA4705967DEBBB59AB5 = {
+			isa = PBXBuildFile;
+			fileRef = 210A42478B729CD8FA00B47C;
+		};
+		23FB2CAEB38545C3793097DD = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 513804B2957FB72C4F7A17B1;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Config/Pointrans.entitlements";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		253446D2A98069B826AA36D4 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.xml;
+			path = "PrivacyInfo.xcprivacy";
+			sourceTree = "<group>";
+		};
+		271AC8FA0C57EDEE7D5788DE = {
+			isa = PBXBuildFile;
+			fileRef = 172D61C994C5921E61544B9C;
+		};
+		29C7B681C8D62CBAC94D51C0 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6999223B144664B5601B7EE0;
+			buildPhases = (
+				8682261519D15BD64A9E5D31,
+				F001BC2AF9EB5498B3360756,
+				E28FAD8F60ECDED9B4AD087A,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = Pointrans;
+			productName = Pointrans;
+			productReference = B6CDB6E5D160E013280D3C68;
+			productType = "com.apple.product-type.application";
+		};
+		2D330A34D17046FE536FC52A = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6A5BDA1ED3BF871B55DDC206,
+				8B49F86BD40ACF110EB97F2B,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2E145FDB8F67412F2B13D73F = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "HybridTextExtractorTests.swift";
+			sourceTree = "<group>";
+		};
+		2F51117B906A534EE6153398 = {
+			isa = PBXBuildFile;
+			fileRef = 4C4BDC2723B2072DDAF0D808;
+		};
+		2FB7AE4410302F655BF71297 = {
+			isa = PBXBuildFile;
+			fileRef = 7369936DFB646E4197794B08;
+		};
+		3323AB9246656C45BC962802 = {
+			isa = PBXBuildFile;
+			fileRef = 39368720078E45F2192C1D21;
+		};
+		381AF4F3E9BE0679E4D95B98 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/AppPreferences.swift";
+			sourceTree = "<group>";
+		};
+		39368720078E45F2192C1D21 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "UI/DesignSystem.swift";
+			sourceTree = "<group>";
+		};
+		3B2915C65F8F069B82F99FC2 = {
+			isa = PBXBuildFile;
+			fileRef = 8C125653F01121E45FEE28B2;
+		};
+		3CF6A4F2E05B3AAE7E2CBFEE = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7326A50204128321A8234000;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Config/Pointrans.entitlements";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "macosx";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		3E54379579ADB7BB98C87225 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E9D0CF7E265D0EE8AB98DFF = {
+			isa = PBXBuildFile;
+			fileRef = F1C2664A409D8179F1E10398;
+		};
+		3EE5BDC384FD3A7882544603 = {
+			isa = PBXBuildFile;
+			fileRef = 7255AFCE5E283C6A3B5F67AB;
+		};
+		40F0E99E1EC1A70D9E0C7811 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/SafeCorridor.swift";
+			sourceTree = "<group>";
+		};
+		4125057379AE12C52671CDDE = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2D330A34D17046FE536FC52A;
+			buildPhases = (
+				FFD25EA4B0C184CA94EBBB82,
+				3E54379579ADB7BB98C87225,
+				B96F40933D2807381869DFAA,
+			);
+			buildRules = ();
+			dependencies = (DC20AF849E72CF239ED106F2,);
+			name = PointransUITests;
+			productName = PointransUITests;
+			productReference = 6876384C1F14AB301558A48A;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		41D3B8310FAFECFBB479A1E5 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.xml;
+			path = "Info.plist";
+			sourceTree = "<group>";
+		};
+		4230FB1B722C0B74101196B1 = {
+			isa = PBXBuildFile;
+			fileRef = F1C2664A409D8179F1E10398;
+		};
+		431D557FDC1D9D7E05D28E83 = {
+			isa = PBXFileReference;
+			lastKnownFileType = file;
+			path = "Dictionary.sqlite3";
+			sourceTree = "<group>";
+		};
+		47BCEA69820E94033EB7AD37 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 98F54143AB4E86B28C3AFEE0;
+			proxyType = 1;
+			remoteGlobalIDString = 29C7B681C8D62CBAC94D51C0;
+			remoteInfo = Pointrans;
+		};
+		47EB3E4B2AF3BE8A405457DC = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "UI/StatusItemCoordinator.swift";
+			sourceTree = "<group>";
+		};
+		4806F12B9C7DB21EC0A7EF16 = {
+			isa = PBXBuildFile;
+			fileRef = 0F3961357C10A2DC2B3382F6;
+		};
+		4C4BDC2723B2072DDAF0D808 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/HybridTextExtractor.swift";
+			sourceTree = "<group>";
+		};
+		5016CD2EF950C36468CD290D = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = "Automatic";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.cuostudio.PointransCoreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = "complete";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		50778595AA221B068518C8A3 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.xcconfig;
+			path = "Base.xcconfig";
+			sourceTree = "<group>";
+		};
+		513804B2957FB72C4F7A17B1 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.xcconfig;
+			path = "Release.xcconfig";
+			sourceTree = "<group>";
+		};
+		528428DF3452D7F237CFF544 = {
+			isa = PBXBuildFile;
+			fileRef = F663FAF25134BCCA07CEF23E;
+		};
+		538E5B181630EC993AF4E91F = {
+			isa = PBXBuildFile;
+			fileRef = 7D22FE143CEC02A2D3019391;
+		};
+		59C23251D4B6AE8C66E840DD = {
+			isa = PBXBuildFile;
+			fileRef = D9578D1C176A3F64B54015BC;
+		};
+		5A2FF233CE93FBCA0A3E42A6 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81220D7AFF0A670E8030AA93,
+				1507FF46E9C9E5EC4AE0DCB1,
+				5B0B367FBCE62A94F15E0DE3,
+				98AD6D74E7E5173B5460BF86,
+				3EE5BDC384FD3A7882544603,
+				164A38BBEA052CC47EEE6F6A,
+				C0A273C1363A4E119EE4F839,
+				0D18ED36004BA2E5DD61DCEF,
+				9012D23405AFC2867621431F,
+				E4637089DC1B336337F2686A,
+				A48A8EF95B1F286DA3817DD0,
+				958FB0BBF144CFBB9FB4A7A9,
+				B18F7AC94240CB626CDC322D,
+				B5BA87C3AA74C87785E36D85,
+				5AA18B82D40447F7F8591A78,
+				F0A00408986A49F8F91FBCF1,
+				F4085B0C3E16153D615F3EEA,
+				FCD8B2133E556E6BAE328578,
+				059B3E6639EAD8E196BBA8C7,
+				DF7D7F685EDBDF3710FBE798,
+				4230FB1B722C0B74101196B1,
+				2055B93B2F4F7FE73C04FF9B,
+				DA4F378E53AC999FBCCF4A74,
+				E470E87E5480F6E25724FD6F,
+				528428DF3452D7F237CFF544,
+				2366BAA4705967DEBBB59AB5,
+				C683A2065A65FE4F7F503705,
+				538E5B181630EC993AF4E91F,
+				63F652E80771191779B23A32,
+				E6574FEA869EFA0A969B69CD,
+				E5FC4DA7EDACD7440B70E357,
+				AECF4AAF6833BA5F6A9E2686,
+				78BFE796A89CA9938F27A30F,
+				D869440801264288B7012CA9,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A4C3C3AFA931B0588AA6887 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "TextTokenizerTests.swift";
+			sourceTree = "<group>";
+		};
+		5AA18B82D40447F7F8591A78 = {
+			isa = PBXBuildFile;
+			fileRef = 4C4BDC2723B2072DDAF0D808;
+		};
+		5B0B367FBCE62A94F15E0DE3 = {
+			isa = PBXBuildFile;
+			fileRef = 11E73C9EC21DA127938E2F8F;
+		};
+		5B4A15BF3D524E4D2F85EF03 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/TextTokenizer.swift";
+			sourceTree = "<group>";
+		};
+		5D094A0FC6F26390797CF2A4 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "VisualSnapshotTests.swift";
+			sourceTree = "<group>";
+		};
+		5D1864F74E3F36480A6EFD6E = {
+			isa = PBXGroup;
+			children = (
+				8997C1E5215D9CBA285D34FC,
+				639584A1F258A35E92EDE8F5,
+				6FD4A15D5E61BEE7DFEE7740,
+				F663FAF25134BCCA07CEF23E,
+				210A42478B729CD8FA00B47C,
+				F6B7FE392649D56035E23AB8,
+				7D22FE143CEC02A2D3019391,
+				2E145FDB8F67412F2B13D73F,
+				DC9979820B95CF139EA79F16,
+				B7AD9BCDC1DB2FDFB52187AD,
+				5A4C3C3AFA931B0588AA6887,
+				950F4BA413F0324F671581AD,
+				5D094A0FC6F26390797CF2A4,
+			);
+			path = "Tests/PointransTests";
+			sourceTree = "<group>";
+		};
+		6226F31D38236BEA0789DB83 = {
+			isa = PBXBuildFile;
+			fileRef = 40F0E99E1EC1A70D9E0C7811;
+		};
+		639584A1F258A35E92EDE8F5 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "BaseTranslationServiceTests.swift";
+			sourceTree = "<group>";
+		};
+		63F652E80771191779B23A32 = {
+			isa = PBXBuildFile;
+			fileRef = 2E145FDB8F67412F2B13D73F;
+		};
+		65202831538922984F16DF7A = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = "Automatic";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.cuostudio.PointransCoreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = "complete";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		6876384C1F14AB301558A48A = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			includeInIndex = 0;
+			path = PointransUITests.xctest;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		68BBE1D6F7E9051264C926BE = {
+			isa = PBXBuildFile;
+			fileRef = 77C60D693C4856F59B4BFC0D;
+		};
+		6999223B144664B5601B7EE0 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CF6A4F2E05B3AAE7E2CBFEE,
+				23FB2CAEB38545C3793097DD,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6A5BDA1ED3BF871B55DDC206 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = "Automatic";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.cuostudio.PointransUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = "complete";
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = "Pointrans";
+			};
+			name = Debug;
+		};
+		6FA55A997D6F6F5B17CEB610 = {
+			isa = PBXBuildFile;
+			fileRef = 11E73C9EC21DA127938E2F8F;
+		};
+		6FD4A15D5E61BEE7DFEE7740 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "CloudContextClientTests.swift";
+			sourceTree = "<group>";
+		};
+		7255AFCE5E283C6A3B5F67AB = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/ProviderProtocols.swift";
+			sourceTree = "<group>";
+		};
+		7326A50204128321A8234000 = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.xcconfig;
+			path = "Debug.xcconfig";
+			sourceTree = "<group>";
+		};
+		73492909BDF77B5974989233 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/ScreenCoordinates.swift";
+			sourceTree = "<group>";
+		};
+		7369936DFB646E4197794B08 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/TranslationController.swift";
+			sourceTree = "<group>";
+		};
+		744203E57A60333548F2AFC1 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB86CF9993354CA9BD12F20F;
+			buildPhases = (
+				5A2FF233CE93FBCA0A3E42A6,
+				982794F0E1F0E62CE16EDF17,
+				BFF8FCF70E4669A396E97110,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = PointransCoreTests;
+			productName = PointransCoreTests;
+			productReference = 782395792B604A503D86C9E7;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7618929EA9E963D5B60BE1FC = {
+			isa = PBXBuildFile;
+			fileRef = 0A23DA3EB3A7358D5738C66B;
+		};
+		77C60D693C4856F59B4BFC0D = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "UI/TranslationPanelCoordinator.swift";
+			sourceTree = "<group>";
+		};
+		782395792B604A503D86C9E7 = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			includeInIndex = 0;
+			path = PointransCoreTests.xctest;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		78BFE796A89CA9938F27A30F = {
+			isa = PBXBuildFile;
+			fileRef = 950F4BA413F0324F671581AD;
+		};
+		7D22FE143CEC02A2D3019391 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "HoverIntentMachineTests.swift";
+			sourceTree = "<group>";
+		};
+		81220D7AFF0A670E8030AA93 = {
+			isa = PBXBuildFile;
+			fileRef = 381AF4F3E9BE0679E4D95B98;
+		};
+		831C3834841FDE7E3B816C2A = {
+			isa = PBXBuildFile;
+			fileRef = 7255AFCE5E283C6A3B5F67AB;
+		};
+		86229165773AB12C69DF62FC = {
+			isa = PBXBuildFile;
+			fileRef = 0DAA66C8358FF9B491F852A4;
+		};
+		8682261519D15BD64A9E5D31 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				96408175091AB9F8BFF3134C,
+				957EB63BC42AAF6D1439CE9A,
+				6FA55A997D6F6F5B17CEB610,
+				3B2915C65F8F069B82F99FC2,
+				831C3834841FDE7E3B816C2A,
+				6226F31D38236BEA0789DB83,
+				CF94882F58C856527C042289,
+				2FB7AE4410302F655BF71297,
+				06675FBD851C4977B68AFECA,
+				59C23251D4B6AE8C66E840DD,
+				7618929EA9E963D5B60BE1FC,
+				271AC8FA0C57EDEE7D5788DE,
+				FD7300874FAA7BF85A9B6337,
+				E184785B894EB6D1D41E47FF,
+				9DA5B9FDD00805B84D75194F,
+				2F51117B906A534EE6153398,
+				17D205495E38E6FC173E90E6,
+				86229165773AB12C69DF62FC,
+				C6D7FE82611082D7CF0E9AE2,
+				1236EACEDC1D43017F1AAD58,
+				E442E8C50F8AD5F1F62BA7C3,
+				A22C6EC3ACC8AD6D6D0BC6D7,
+				3323AB9246656C45BC962802,
+				F2CD237312816D55CBBA0B79,
+				3E9D0CF7E265D0EE8AB98DFF,
+				68BBE1D6F7E9051264C926BE,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		877A6BA951A2EA0025A2ABE8 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = "macosx";
+			};
+			name = Debug;
+		};
+		8997C1E5215D9CBA285D34FC = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "AppPreferencesTests.swift";
+			sourceTree = "<group>";
+		};
+		8B49F86BD40ACF110EB97F2B = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = "Automatic";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.cuostudio.PointransUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = "complete";
+				SWIFT_VERSION = 6.0;
+				TEST_TARGET_NAME = "Pointrans";
+			};
+			name = Release;
+		};
+		8C125653F01121E45FEE28B2 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/LanguagePackManager.swift";
+			sourceTree = "<group>";
+		};
+		8FA76DFD14B416A186FCE057 = {
+			isa = PBXBuildFile;
+			fileRef = 431D557FDC1D9D7E05D28E83;
+		};
+		9012D23405AFC2867621431F = {
+			isa = PBXBuildFile;
+			fileRef = D9578D1C176A3F64B54015BC;
+		};
+		92792A7D3C5C605DD0FD1310 = {
+			isa = PBXGroup;
+			children = (
+				C86E10D3AB6328E8E16CA8D5,
+			);
+			path = "Tests/PointransUITests";
+			sourceTree = "<group>";
+		};
+		950F4BA413F0324F671581AD = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "TranslationControllerTests.swift";
+			sourceTree = "<group>";
+		};
+		9529D29D5BA0115473CE111B = {
+			isa = PBXBuildFile;
+			fileRef = 431D557FDC1D9D7E05D28E83;
+		};
+		957EB63BC42AAF6D1439CE9A = {
+			isa = PBXBuildFile;
+			fileRef = B19FB2132A16BAB0AF5182E9;
+		};
+		958FB0BBF144CFBB9FB4A7A9 = {
+			isa = PBXBuildFile;
+			fileRef = 10352F5ED42FC6452E3141ED;
+		};
+		959134B361DD7E21ADEA3164 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = "macosx";
+			};
+			name = Release;
+		};
+		96408175091AB9F8BFF3134C = {
+			isa = PBXBuildFile;
+			fileRef = 381AF4F3E9BE0679E4D95B98;
+		};
+		9642F1047C1002A1EE72F0DB = {
+			isa = PBXGroup;
+			children = (
+				381AF4F3E9BE0679E4D95B98,
+				B19FB2132A16BAB0AF5182E9,
+				11E73C9EC21DA127938E2F8F,
+				8C125653F01121E45FEE28B2,
+				7255AFCE5E283C6A3B5F67AB,
+				40F0E99E1EC1A70D9E0C7811,
+				73492909BDF77B5974989233,
+				7369936DFB646E4197794B08,
+				14F0CC91EEB713082152A741,
+				D9578D1C176A3F64B54015BC,
+				0A23DA3EB3A7358D5738C66B,
+				172D61C994C5921E61544B9C,
+				10352F5ED42FC6452E3141ED,
+				099A303041915877C0D7FA9A,
+				A4B655F39459C2F4347905D7,
+				4C4BDC2723B2072DDAF0D808,
+				216781B3D819893AAE663F80,
+				0DAA66C8358FF9B491F852A4,
+				0A11110E1A056C9C50CB91F7,
+				5B4A15BF3D524E4D2F85EF03,
+				D79BE4BF37BA3051446C3927,
+				20AB89B45F871FE7B78CDD16,
+				39368720078E45F2192C1D21,
+				47EB3E4B2AF3BE8A405457DC,
+				F1C2664A409D8179F1E10398,
+				77C60D693C4856F59B4BFC0D,
+			);
+			path = "Sources/Pointrans";
+			sourceTree = "<group>";
+		};
+		982794F0E1F0E62CE16EDF17 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FE16881B109032A6321FCCE7,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		98AD6D74E7E5173B5460BF86 = {
+			isa = PBXBuildFile;
+			fileRef = 8C125653F01121E45FEE28B2;
+		};
+		98F54143AB4E86B28C3AFEE0 = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					29C7B681C8D62CBAC94D51C0 = { CreatedOnToolsVersion = 26.0; };
+					744203E57A60333548F2AFC1 = { CreatedOnToolsVersion = 26.0; };
+					4125057379AE12C52671CDDE = { CreatedOnToolsVersion = 26.0; TestTargetID = 29C7B681C8D62CBAC94D51C0; };
+				};
+			};
+			buildConfigurationList = FCBE72429C0B1B8B87DC8CC9;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, "zh-Hans", Base);
+			mainGroup = ADCF10F76EBF2A74473E9DC4;
+			productRefGroup = 00C45FD35CB0F9C5F764F070;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (29C7B681C8D62CBAC94D51C0, 744203E57A60333548F2AFC1, 4125057379AE12C52671CDDE);
+		};
+		9DA5B9FDD00805B84D75194F = {
+			isa = PBXBuildFile;
+			fileRef = A4B655F39459C2F4347905D7;
+		};
+		A22C6EC3ACC8AD6D6D0BC6D7 = {
+			isa = PBXBuildFile;
+			fileRef = 20AB89B45F871FE7B78CDD16;
+		};
+		A48A8EF95B1F286DA3817DD0 = {
+			isa = PBXBuildFile;
+			fileRef = 172D61C994C5921E61544B9C;
+		};
+		A4B655F39459C2F4347905D7 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/EventTapMonitor.swift";
+			sourceTree = "<group>";
+		};
+		AB86CF9993354CA9BD12F20F = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				65202831538922984F16DF7A,
+				5016CD2EF950C36468CD290D,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ADCF10F76EBF2A74473E9DC4 = {
+			isa = PBXGroup;
+			children = (
+				9642F1047C1002A1EE72F0DB,
+				22D02A9EFAC9B3FBBAEBE062,
+				5D1864F74E3F36480A6EFD6E,
+				92792A7D3C5C605DD0FD1310,
+				D35BDCF6803CCB1A9C4483A8,
+				ED2F3B048716C9DC7573911C,
+				00C45FD35CB0F9C5F764F070,
+			);
+			sourceTree = "<group>";
+		};
+		AECF4AAF6833BA5F6A9E2686 = {
+			isa = PBXBuildFile;
+			fileRef = 5A4C3C3AFA931B0588AA6887;
+		};
+		B18F7AC94240CB626CDC322D = {
+			isa = PBXBuildFile;
+			fileRef = 099A303041915877C0D7FA9A;
+		};
+		B19FB2132A16BAB0AF5182E9 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Core/DomainModels.swift";
+			sourceTree = "<group>";
+		};
+		B5BA87C3AA74C87785E36D85 = {
+			isa = PBXBuildFile;
+			fileRef = A4B655F39459C2F4347905D7;
+		};
+		B6CDB6E5D160E013280D3C68 = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.application;
+			includeInIndex = 0;
+			path = Pointrans.app;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		B7AD9BCDC1DB2FDFB52187AD = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "ScreenCoordinatesTests.swift";
+			sourceTree = "<group>";
+		};
+		B96F40933D2807381869DFAA = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BFF8FCF70E4669A396E97110 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8FA76DFD14B416A186FCE057,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0A273C1363A4E119EE4F839 = {
+			isa = PBXBuildFile;
+			fileRef = 73492909BDF77B5974989233;
+		};
+		C683A2065A65FE4F7F503705 = {
+			isa = PBXBuildFile;
+			fileRef = F6B7FE392649D56035E23AB8;
+		};
+		C6D7FE82611082D7CF0E9AE2 = {
+			isa = PBXBuildFile;
+			fileRef = 0A11110E1A056C9C50CB91F7;
+		};
+		C86E10D3AB6328E8E16CA8D5 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "PointransUITests.swift";
+			sourceTree = "<group>";
+		};
+		CF94882F58C856527C042289 = {
+			isa = PBXBuildFile;
+			fileRef = 73492909BDF77B5974989233;
+		};
+		D35BDCF6803CCB1A9C4483A8 = {
+			isa = PBXGroup;
+			children = (
+				41D3B8310FAFECFBB479A1E5,
+				50778595AA221B068518C8A3,
+				7326A50204128321A8234000,
+				513804B2957FB72C4F7A17B1,
+				15F69CC809C5D3D4B1BBD856,
+			);
+			path = "Config";
+			sourceTree = "<group>";
+		};
+		D79BE4BF37BA3051446C3927 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Testing/UITestSupport.swift";
+			sourceTree = "<group>";
+		};
+		D869440801264288B7012CA9 = {
+			isa = PBXBuildFile;
+			fileRef = 5D094A0FC6F26390797CF2A4;
+		};
+		D9578D1C176A3F64B54015BC = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "Services/AccessibilityTextExtractor.swift";
+			sourceTree = "<group>";
+		};
+		DA4F378E53AC999FBCCF4A74 = {
+			isa = PBXBuildFile;
+			fileRef = 639584A1F258A35E92EDE8F5;
+		};
+		DC20AF849E72CF239ED106F2 = {
+			isa = PBXTargetDependency;
+			target = 29C7B681C8D62CBAC94D51C0;
+			targetProxy = 47BCEA69820E94033EB7AD37;
+		};
+		DC9979820B95CF139EA79F16 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "SafeCorridorTests.swift";
+			sourceTree = "<group>";
+		};
+		DF7D7F685EDBDF3710FBE798 = {
+			isa = PBXBuildFile;
+			fileRef = 39368720078E45F2192C1D21;
+		};
+		E184785B894EB6D1D41E47FF = {
+			isa = PBXBuildFile;
+			fileRef = 099A303041915877C0D7FA9A;
+		};
+		E28FAD8F60ECDED9B4AD087A = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEDE88A0665B4B9BFE787746,
+				9529D29D5BA0115473CE111B,
+				4806F12B9C7DB21EC0A7EF16,
+				ED27FCC59397FEECEE9838BF,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E442E8C50F8AD5F1F62BA7C3 = {
+			isa = PBXBuildFile;
+			fileRef = D79BE4BF37BA3051446C3927;
+		};
+		E4637089DC1B336337F2686A = {
+			isa = PBXBuildFile;
+			fileRef = 0A23DA3EB3A7358D5738C66B;
+		};
+		E470E87E5480F6E25724FD6F = {
+			isa = PBXBuildFile;
+			fileRef = 6FD4A15D5E61BEE7DFEE7740;
+		};
+		E5FC4DA7EDACD7440B70E357 = {
+			isa = PBXBuildFile;
+			fileRef = B7AD9BCDC1DB2FDFB52187AD;
+		};
+		E6574FEA869EFA0A969B69CD = {
+			isa = PBXBuildFile;
+			fileRef = DC9979820B95CF139EA79F16;
+		};
+		ED27FCC59397FEECEE9838BF = {
+			isa = PBXBuildFile;
+			fileRef = 253446D2A98069B826AA36D4;
+		};
+		ED2F3B048716C9DC7573911C = {
+			isa = PBXGroup;
+			children = (
+				1D35105270A589302E4231BF,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F001BC2AF9EB5498B3360756 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0EF38B35986445F85121013E,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0A00408986A49F8F91FBCF1 = {
+			isa = PBXBuildFile;
+			fileRef = 216781B3D819893AAE663F80;
+		};
+		F1C2664A409D8179F1E10398 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "UI/TranslationCardView.swift";
+			sourceTree = "<group>";
+		};
+		F2CD237312816D55CBBA0B79 = {
+			isa = PBXBuildFile;
+			fileRef = 47EB3E4B2AF3BE8A405457DC;
+		};
+		F4085B0C3E16153D615F3EEA = {
+			isa = PBXBuildFile;
+			fileRef = 0DAA66C8358FF9B491F852A4;
+		};
+		F663FAF25134BCCA07CEF23E = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "ContextAnalyzerRouterTests.swift";
+			sourceTree = "<group>";
+		};
+		F6B7FE392649D56035E23AB8 = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			path = "DictionaryStoreTests.swift";
+			sourceTree = "<group>";
+		};
+		FCBE72429C0B1B8B87DC8CC9 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				877A6BA951A2EA0025A2ABE8,
+				959134B361DD7E21ADEA3164,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FCD8B2133E556E6BAE328578 = {
+			isa = PBXBuildFile;
+			fileRef = 5B4A15BF3D524E4D2F85EF03;
+		};
+		FD7300874FAA7BF85A9B6337 = {
+			isa = PBXBuildFile;
+			fileRef = 10352F5ED42FC6452E3141ED;
+		};
+		FE16881B109032A6321FCCE7 = {
+			isa = PBXBuildFile;
+			fileRef = 1D35105270A589302E4231BF;
+		};
+		FEDE88A0665B4B9BFE787746 = {
+			isa = PBXBuildFile;
+			fileRef = 181BAD9630BB8A5C4C9F1BCE;
+		};
+		FFD25EA4B0C184CA94EBBB82 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D13D3098D59AD1C232597CD,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0;
+}
