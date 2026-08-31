@@ -59,7 +59,7 @@
 ### 构建与重复项治理
 
 - 保持 Bundle ID `com.tailcasso.Pointrans`、UserDefaults 域、Keychain 和 TCC 身份。
-- AppIcon、菜单栏 Symbol 和页头横版 Logo 统一来自 `Pointrans_Logo_Design_Files` v1.1 定稿；Release 构建会重新生成/复制品牌资源，不再保留蓝色渐变或手绘近似 Logo 的独立来源。
+- AppIcon 使用原生 `AppIcon.icon`，由 Icon Composer 的纯黑背景和单一透明白色 Symbol 图层组成；旧预合成 `AppIcon.appiconset` 已删除，系统只应用一次外形裁切。菜单栏 Symbol 和页头横版 Logo 继续来自 `Pointrans_Logo_Design_Files` v1.1 定稿。
 - Release 为 Universal 2，启动时验证只读 SQLite 词典完整性。
 - `build.sh` 只输出 `build/Artifacts.noindex/Pointrans.app`；`package.sh` 只在 `dist` 留版本化 DMG。
 - DMG 只提供一个 Pointrans 和 Applications 链接；构建与打包不触碰 `/Applications`。
@@ -71,7 +71,7 @@
 - Worker：TypeScript check + 19/19。
 - App/Core/UI Tests：完整 `build-for-testing` 成功，UI Tests 仅编译未运行。
 - Release：arm64/x86_64 静态分析成功。
-- DMG：2.0.0（213），SHA-256 `c19b8477d48f1b3dd8b18dc884efec5baca6c05192cd73392acc9b68b55fe2d2`；严格签名、架构、词典、挂载复制和无调试 entitlement 验证全部通过。
+- DMG：2.0.0（215）；严格签名、架构、现代图标、词典、挂载复制和无调试 entitlement 由 `package.sh` 全部验证。
 - Launch Services：最终打包后没有任何仓库 Pointrans App 注册记录。
 
 ## 尚未完成的外部门槛

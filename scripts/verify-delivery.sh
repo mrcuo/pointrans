@@ -67,6 +67,7 @@ test "$(defaults read "$APP_PATH/Contents/Info" CFBundleIdentifier)" = "com.tail
 test "$(defaults read "$APP_PATH/Contents/Info" CFBundleShortVersionString)" = "$EXPECTED_VERSION"
 test "$(defaults read "$APP_PATH/Contents/Info" CFBundleVersion)" = "$EXPECTED_BUILD"
 test "$(defaults read "$APP_PATH/Contents/Info" LSUIElement)" = "1"
+test "$(defaults read "$APP_PATH/Contents/Info" CFBundleIconName)" = "AppIcon"
 test "$(defaults read "$APP_PATH/Contents/Info" PointransWorkerURL)" = "https://pointrans-api.cuostudio.workers.dev"
 SOURCE_REVISION="$(defaults read "$APP_PATH/Contents/Info" PointransSourceRevision)"
 [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}(-dirty)?$ ]]
@@ -78,6 +79,7 @@ codesign -dvvv "$APP_PATH" 2>&1 | grep -F 'runtime' >/dev/null
 verify_signature_policy "$APP_PATH"
 ! codesign -d --entitlements :- "$APP_PATH" 2>/dev/null | grep -Fq 'get-task-allow'
 sqlite3 "$APP_PATH/Contents/Resources/Dictionary.sqlite3" 'PRAGMA quick_check;' | grep -Fxq 'ok'
+python3 "$PROJECT_ROOT/scripts/verify_compiled_app_icon.py" "$APP_PATH/Contents/Resources/AppIcon.icns"
 
 hdiutil attach "$DMG_PATH" -nobrowse -readonly -mountpoint "$MOUNT_DIR" -quiet
 test -L "$MOUNT_DIR/Applications"

@@ -115,4 +115,6 @@ fi
 
 codesign --verify --deep --strict --verbose=2 "$OUTPUT_APP"
 test "$(/usr/libexec/PlistBuddy -c 'Print :PointransSourceRevision' "$OUTPUT_APP/Contents/Info.plist")" = "$SOURCE_REVISION"
+test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$OUTPUT_APP/Contents/Info.plist")" = "AppIcon"
+python3 "$PROJECT_ROOT/scripts/verify_compiled_app_icon.py" "$OUTPUT_APP/Contents/Resources/AppIcon.icns"
 echo "Built $OUTPUT_APP ($ARCHITECTURES, source $SOURCE_REVISION, signing identity $SIGN_IDENTITY)"

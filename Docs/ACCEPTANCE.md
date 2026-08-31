@@ -1,7 +1,7 @@
 # Pointrans 2.0 验收记录
 
 记录日期：2026-08-31
-候选版本：Pointrans 2.0.0（213）
+候选版本：Pointrans 2.0.0（215）
 
 ## 自动化验收结果
 
@@ -12,7 +12,7 @@
 - 离屏 UI 烟雾测试：控制中心、Preview 和 Pinned 均通过 `NSHostingView` 渲染与有效像素检查。
 - SQLite 词典：启动时执行 `quick_check(1)`、格式版本和双向非空表校验；交付验证再次执行 `PRAGMA quick_check`。
 - Swift 和 Worker 的生成文件已重建，`git diff --check`、Info.plist、String Catalog JSON 和旧产品契约静态扫描均通过。
-- AppIcon 固定由 v1.1 的黑底白色 Symbol 软件图标画布生成，并在生成期拒绝白底黑色变体；菜单栏 Symbol 和页头横版 Logo 由 `Pointrans_Logo_Design_Files` 内的矢量定稿无损复制，测试包显式验证两项矢量资源可以按名称加载。
+- AppIcon 已迁移为 macOS 26 原生 `AppIcon.icon`：纯黑 Icon Composer 背景只叠加一个透明白色 Symbol 图层，由系统应用唯一一次外形裁切；旧 `AppIcon.appiconset` 已删除。生成期校验 Icon Composer 结构、纯黑背景、透明度和安全区，避免再次交付带内嵌圆角容器的兼容图标。菜单栏 Symbol 和页头横版 Logo 仍由 `Pointrans_Logo_Design_Files` 内的矢量定稿无损复制。
 
 自动化覆盖的关键产品契约：
 
@@ -35,14 +35,13 @@
 ## 最终交付物
 
 - DMG：[Pointrans-2.0.0.dmg](../dist/Pointrans-2.0.0.dmg)
-- SHA-256：`c19b8477d48f1b3dd8b18dc884efec5baca6c05192cd73392acc9b68b55fe2d2`
-- 大小：4,594,161 bytes
+- SHA-256 与大小：每次由最终 `package.sh` 产物重新计算，并在交付消息中报告，文档不保存会随源提交变化而失效的旧值。
 - Bundle ID：`com.tailcasso.Pointrans`
-- Build：213
+- Build：215
 - `LSUIElement = true`
 - App 分类：`public.app-category.utilities`
 - 架构：`x86_64 arm64`（Universal 2）
-- 源身份：`b7ca14fc36aecf9b0761c3c6f465ab49bcf2c88a-dirty`
+- 源身份：最终 DMG 内 `PointransSourceRevision` 必须是干净的 40 位提交哈希，并由交付门禁验证。
 - 签名：本机 Apple Development 签名，Team ID `R8GNQHTB2Z`，Hardened Runtime；原始 App 和从 DMG 复制出的 App 均通过 `codesign --verify --deep --strict`，且无 `get-task-allow`。
 - DMG 内容门禁：只读镜像包含一个 `Pointrans.app`、Applications 软链接和隐藏的 `.metadata_never_index` 标记；`dist` 不保留裸 App。
 

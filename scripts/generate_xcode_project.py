@@ -41,6 +41,8 @@ def file_type(path: Path) -> str:
         return "sourcecode.swift"
     if path.suffix == ".xcassets":
         return "folder.assetcatalog"
+    if path.suffix == ".icon":
+        return "folder.iconcomposer.icon"
     if path.suffix == ".xcstrings":
         return "text.json.xcstrings"
     if path.suffix == ".xcprivacy":
@@ -115,6 +117,7 @@ def main() -> None:
         app_root / "UI" / "TranslationCardView.swift",
     ]
     resources = [
+        app_root / "Resources" / "AppIcon.icon",
         app_root / "Resources" / "Assets.xcassets",
         app_root / "Resources" / "Dictionary.sqlite3",
         app_root / "Resources" / "Localizable.xcstrings",

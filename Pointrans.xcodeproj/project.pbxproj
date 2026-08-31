@@ -158,6 +158,7 @@
 		22D02A9EFAC9B3FBBAEBE062 = {
 			isa = PBXGroup;
 			children = (
+				A3BC1FDE486D48EC6A31CF2B,
 				181BAD9630BB8A5C4C9F1BCE,
 				431D557FDC1D9D7E05D28E83,
 				0F3961357C10A2DC2B3382F6,
@@ -332,6 +333,10 @@
 		4230FB1B722C0B74101196B1 = {
 			isa = PBXBuildFile;
 			fileRef = F1C2664A409D8179F1E10398;
+		};
+		42A626B1344C30697673518B = {
+			isa = PBXBuildFile;
+			fileRef = A3BC1FDE486D48EC6A31CF2B;
 		};
 		431D557FDC1D9D7E05D28E83 = {
 			isa = PBXFileReference;
@@ -895,6 +900,12 @@
 			isa = PBXBuildFile;
 			fileRef = 20AB89B45F871FE7B78CDD16;
 		};
+		A3BC1FDE486D48EC6A31CF2B = {
+			isa = PBXFileReference;
+			lastKnownFileType = folder.iconcomposer.icon;
+			path = "AppIcon.icon";
+			sourceTree = "<group>";
+		};
 		A3CC85A3C342E4B3D39E3815 = {
 			isa = PBXBuildFile;
 			fileRef = 181BAD9630BB8A5C4C9F1BCE;
@@ -1079,6 +1090,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				42A626B1344C30697673518B,
 				FEDE88A0665B4B9BFE787746,
 				9529D29D5BA0115473CE111B,
 				4806F12B9C7DB21EC0A7EF16,
