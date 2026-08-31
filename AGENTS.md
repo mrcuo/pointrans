@@ -9,5 +9,5 @@ unless a task explicitly adopts them.
 - Never send screenshots or application identity to the Worker, and never commit production secrets.
 - Run the hostless `PointransCoreTests` command documented in `README.md` for Swift changes. For Worker changes, run
   `npm run check` and `npm test` inside `Worker/`.
-- `build.sh` and `package.sh` install or replace the local application; run them only when the user requests a build,
-  installation, or package.
+- `build.sh` produces `build/Artifacts.noindex/Pointrans.app`; `package.sh` leaves only the versioned DMG in `dist` and verifies that no indexable repository App copy exists. Neither may install,
+  launch, terminate, or replace the local application. Installation remains an explicit user-operated action.

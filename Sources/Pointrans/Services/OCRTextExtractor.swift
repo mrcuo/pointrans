@@ -7,13 +7,7 @@ actor OCRTextExtractor: TextExtracting {
     struct Configuration: Sendable {
         var captureSize = CGSize(width: 520, height: 120)
         var minimumConfidence: Float = 0.35
-        var maximumHorizontalDistance: CGFloat = 70
-    }
-
-    enum OCRError: Error, Sendable {
-        case permissionDenied
-        case captureFailed
-        case noCandidate
+        var tokenHitPadding = CGSize(width: 5, height: 7)
     }
 
     private let configuration: Configuration
@@ -24,10 +18,9 @@ actor OCRTextExtractor: TextExtracting {
 
     func extract(
         at point: CGPoint,
-        displayID: CGDirectDisplayID,
-        direction: TranslationDirection
+        displayID: CGDirectDisplayID
     ) async throws -> ExtractionResult {
-        guard CGPreflightScreenCaptureAccess() else { throw OCRError.permissionDenied }
+        guard CGPreflightScreenCaptureAccess() else { throw ExtractionError.screenCapturePermissionRequired }
         try Task.checkCancellation()
 
         let displayBounds = CGDisplayBounds(displayID)
@@ -39,31 +32,34 @@ actor OCRTextExtractor: TextExtracting {
         )
         let captureRect = desired.intersection(displayBounds)
         guard !captureRect.isNull, captureRect.width > 20, captureRect.height > 20 else {
-            throw OCRError.captureFailed
+            throw ExtractionError.captureFailed
         }
 
-        let image = try await SCScreenshotManager.captureImage(in: captureRect)
+        let image: CGImage
+        do {
+            image = try await SCScreenshotManager.captureImage(in: captureRect)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ExtractionError.captureFailed
+        }
         try Task.checkCancellation()
 
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.recognitionLanguages = direction == .chineseToEnglish ? ["zh-Hans", "en-US"] : ["en-US"]
+        request.recognitionLanguages = ["en-US", "zh-Hans"]
         request.usesLanguageCorrection = true
         let handler = VNImageRequestHandler(cgImage: image)
         try handler.perform([request])
 
-        struct RecognizedLine {
-            let text: String
-            let bounds: CGRect
-        }
         struct TokenCandidate {
             let word: String
             let bounds: CGRect
             let confidence: Float
-            let lineBounds: CGRect
+            let lineText: String
+            let tokenRange: Range<String.Index>
         }
 
-        var lines: [RecognizedLine] = []
         var best: TokenCandidate?
         var bestScore = CGFloat.infinity
         for observation in request.results ?? [] {
@@ -72,15 +68,18 @@ actor OCRTextExtractor: TextExtracting {
                   candidate.confidence >= configuration.minimumConfidence else { continue }
 
             let lineBounds = quartzBounds(observation.boundingBox, in: captureRect)
-            lines.append(RecognizedLine(text: candidate.string, bounds: lineBounds))
             let padded = lineBounds.insetBy(dx: -4, dy: -8)
             guard padded.minY <= point.y, padded.maxY >= point.y else { continue }
 
-            for token in TextTokenizer.tokenize(candidate.string, direction: direction) {
+            for token in TextTokenizer.tokenize(candidate.string) {
                 guard let tokenObservation = try? candidate.boundingBox(for: token.range) else { continue }
                 let bounds = quartzBounds(tokenObservation.boundingBox, in: captureRect)
+                let hitBounds = bounds.insetBy(
+                    dx: -configuration.tokenHitPadding.width,
+                    dy: -configuration.tokenHitPadding.height
+                )
+                guard hitBounds.contains(point) else { continue }
                 let horizontalDistance = abs(bounds.midX - point.x)
-                guard horizontalDistance <= configuration.maximumHorizontalDistance else { continue }
                 let verticalDistance = abs(bounds.midY - point.y)
                 let score = horizontalDistance + verticalDistance * 1.8 + CGFloat(1 - candidate.confidence) * 40
                 if score < bestScore {
@@ -89,28 +88,24 @@ actor OCRTextExtractor: TextExtracting {
                         word: token.text,
                         bounds: bounds,
                         confidence: candidate.confidence,
-                        lineBounds: lineBounds
+                        lineText: candidate.string,
+                        tokenRange: token.range
                     )
                 }
             }
         }
 
-        guard let best else { throw OCRError.noCandidate }
-        let context = lines
-            .filter { abs($0.bounds.midY - best.lineBounds.midY) <= configuration.captureSize.height / 2 }
-            .sorted {
-                if abs($0.bounds.midY - $1.bounds.midY) > 4 { return $0.bounds.midY < $1.bounds.midY }
-                return $0.bounds.minX < $1.bounds.minX
-            }
-            .map(\.text)
-            .joined(separator: " ")
+        guard let best else { throw ExtractionError.noTextAtPointer }
+        let contextWindow = TextTokenizer.contextWindow(around: best.tokenRange, in: best.lineText)
 
         return ExtractionResult(
             word: best.word,
-            context: TextTokenizer.truncatedUTF16(context, maximumLength: 600),
+            context: contextWindow?.text ?? best.word,
+            targetUTF16Range: contextWindow?.targetUTF16Range ?? NSRange(location: 0, length: best.word.utf16.count),
             bounds: best.bounds,
             confidence: best.confidence,
-            source: .ocr
+            source: .ocr,
+            detectedLanguage: .detect(best.word)
         )
     }
 

@@ -28,10 +28,7 @@ struct URLSessionTransport: HTTPTransporting, Sendable {
 }
 
 actor CloudContextClient: CloudContextAnalyzing {
-    private struct InstallationRequest: Encodable {
-        let installationId: String
-        let appVersion: String
-    }
+    private struct InstallationRequest: Encodable {}
 
     private struct InstallationResponse: Decodable {
         let token: String
@@ -43,6 +40,8 @@ actor CloudContextClient: CloudContextAnalyzing {
         let context: String
         let sourceLanguage: String
         let targetLanguage: String
+        let targetStart: Int
+        let targetLength: Int
     }
 
     private struct ContextResponse: Decodable {
@@ -70,26 +69,24 @@ actor CloudContextClient: CloudContextAnalyzing {
     private let baseURL: URL
     private let identity: any InstallationIdentityProviding
     private let transport: any HTTPTransporting
-    private let appVersion: String
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
     init(
         baseURL: URL,
         identity: any InstallationIdentityProviding = InstallationIdentity(),
-        transport: any HTTPTransporting = URLSessionTransport(),
-        appVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0.0"
+        transport: any HTTPTransporting = URLSessionTransport()
     ) {
         self.baseURL = baseURL
         self.identity = identity
         self.transport = transport
-        self.appVersion = appVersion
         decoder.dateDecodingStrategy = .iso8601
     }
 
     func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
         guard Self.isValid(request.word, minimum: 1, maximum: 100),
-              Self.isValid(request.context, minimum: 0, maximum: 600) else {
+              Self.isValid(request.context, minimum: 0, maximum: 600),
+              Self.isValidTarget(request.targetUTF16Range, word: request.word, in: request.context) else {
             throw ContextAnalyzerError.invalidInput
         }
         let token = try await validToken()
@@ -106,20 +103,16 @@ actor CloudContextClient: CloudContextAnalyzing {
         do {
             try Task.checkCancellation()
             if let existing = try await identity.bearerToken() { return existing }
-            let installationID = try await identity.installationID()
             let url = baseURL.appending(path: "v1/installations")
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.timeoutInterval = 12
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try encoder.encode(InstallationRequest(
-                installationId: installationID.uuidString.lowercased(),
-                appVersion: appVersion
-            ))
+            request.httpBody = try encoder.encode(InstallationRequest())
             let (data, http) = try await transport.data(for: request)
             try Task.checkCancellation()
             guard http.statusCode == 201 else {
-                throw ContextAnalyzerError.unavailable
+                throw mapError(status: http.statusCode, data: data)
             }
             let payload = try decoder.decode(InstallationResponse.self, from: data)
             guard !payload.token.isEmpty else { throw ClientError.invalidResponse }
@@ -129,12 +122,12 @@ actor CloudContextClient: CloudContextAnalyzing {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
-        } catch let error as URLError where error.code == .timedOut {
-            throw ContextAnalyzerError.transient
+        } catch is URLError {
+            throw ContextAnalyzerError.onlineUnavailable
         } catch let error as ContextAnalyzerError {
             throw error
         } catch {
-            throw ContextAnalyzerError.unavailable
+            throw ContextAnalyzerError.onlineUnavailable
         }
     }
 
@@ -151,7 +144,9 @@ actor CloudContextClient: CloudContextAnalyzing {
             word: translation.word,
             context: translation.context,
             sourceLanguage: translation.direction.sourceLanguage,
-            targetLanguage: translation.direction.targetLanguage
+            targetLanguage: translation.direction.targetLanguage,
+            targetStart: translation.targetUTF16Range?.location ?? 0,
+            targetLength: translation.targetUTF16Range?.length ?? translation.word.utf16.count
         ))
 
         do {
@@ -166,40 +161,59 @@ actor CloudContextClient: CloudContextAnalyzing {
                     quotaResetAt: value.resetAt
                 )
             }
-            throw try mapError(status: http.statusCode, data: data)
+            throw mapError(status: http.statusCode, data: data)
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
         } catch let error as ContextAnalyzerError {
             throw error
-        } catch let error as URLError where error.code == .timedOut {
-            throw ContextAnalyzerError.transient
+        } catch is URLError {
+            throw ContextAnalyzerError.onlineUnavailable
         } catch {
-            throw ContextAnalyzerError.unavailable
+            throw ContextAnalyzerError.onlineUnavailable
         }
     }
 
-    private func mapError(status: Int, data: Data) throws -> ContextAnalyzerError {
+    private func mapError(status: Int, data: Data) -> ContextAnalyzerError {
         let payload = try? decoder.decode(ErrorResponse.self, from: data)
         return switch payload?.error.code {
-        case "invalid_request": .invalidInput
+        case "invalid_request": .onlineServiceIncompatible
         case "unauthorized": .unauthorized
         case "quota_exhausted": .quotaExhausted(resetAt: payload?.error.details?.resetAt)
-        case "timeout", "upstream_unavailable": .transient
-        default: status == 401 ? .unauthorized : .unavailable
+        case "timeout", "upstream_unavailable": .onlineUnavailable
+        default:
+            if status == 401 { .unauthorized }
+            else if status == 400 || status == 404 || status == 405 { .onlineServiceIncompatible }
+            else { .onlineUnavailable }
         }
     }
 
     private static func isValid(_ value: String, minimum: Int, maximum: Int) -> Bool {
-        let count = value.unicodeScalars.count
+        let count = value.utf16.count
         return count >= minimum &&
             count <= maximum &&
             value == value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    private static func isValidTarget(_ range: NSRange?, word: String, in context: String) -> Bool {
+        guard let range,
+              range.location >= 0,
+              range.length > 0,
+              NSMaxRange(range) <= context.utf16.count,
+              let stringRange = Range(range, in: context) else { return false }
+        return String(context[stringRange]).localizedCaseInsensitiveCompare(word) == .orderedSame
+    }
 }
 
 enum AppConfiguration {
+    static func appVersion(bundle: Bundle = .main) -> String {
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "2.0.0"
+        guard let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
+              !build.isEmpty else { return version }
+        return "\(version)(\(build))"
+    }
+
     static func workerBaseURL(bundle: Bundle = .main) -> URL? {
         guard let raw = bundle.object(forInfoDictionaryKey: "PointransWorkerURL") as? String,
               let url = URL(string: raw),

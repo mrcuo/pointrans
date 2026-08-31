@@ -36,7 +36,7 @@ if (identityOnly) process.exit(0);
 const installationResponse = await fetch(`${baseURL}/v1/installations`, {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ installationId: crypto.randomUUID(), appVersion: "2.0.0" }),
+  body: JSON.stringify({}),
 });
 
 const installationBody = await installationResponse.json().catch(() => ({}));
@@ -54,6 +54,8 @@ const contextResponse = await fetch(`${baseURL}/v1/context`, {
     requestId,
     word: "pulling",
     context: "She kept pulling the rope until the knot came loose.",
+    targetStart: 9,
+    targetLength: 7,
     sourceLanguage: "en",
     targetLanguage: "zh-Hans",
   }),

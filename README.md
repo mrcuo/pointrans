@@ -1,18 +1,20 @@
 # Pointrans 2.0
 
-Pointrans is a native macOS 26 menu-bar translator for English and Simplified Chinese. Hold a chosen modifier key, pause over text, and receive an indexed offline definition first. Apple Translation can enrich the result on device; context insight uses Apple Foundation Models when available and a privacy-limited Cloudflare fallback otherwise.
+Pointrans is a native macOS 26 menu-bar translator for English and Simplified Chinese. Hold the left Option key and pause over text; Pointrans detects the source language automatically. A concise base translation is resolved by on-device Foundation Models with a strict one-second priority window, then Apple Translation, then the bundled dictionary. Context insight is created only after an explicit click, using Foundation Models first and a privacy-limited Cloudflare fallback only when the user has consented.
 
 Version 2.0 is an architectural rebuild. The application is an Xcode macOS App with Unit Test and UI Test targets, Swift 6 strict concurrency, Universal 2 output, a read-only SQLite dictionary, and an event-driven `CGEventTap`. It keeps the existing bundle identifier `com.tailcasso.Pointrans`, so established settings and macOS permission identity migrate in place.
 
 ## Product behavior
 
-- Accessibility performs the global trigger and accurate text hit-testing.
-- Screen Recording is requested only for the ScreenCaptureKit + Vision OCR fallback.
-- The trigger state machine is `idle → armed → dwelling → extracting → preview → pinned`; requests are immutable and new sessions cancel old work.
+- Accessibility and Screen Recording are both mandatory before the application can become ready. Accessibility provides global input and text hit-testing; ScreenCaptureKit + Vision supplies the OCR fallback.
+- The trigger is permanently the left Option key. There is no trigger-key or translation-direction setting, and Latin and Han tokens select English-to-Chinese or Chinese-to-English automatically.
+- The interaction state machine is `idle → leftOptionDown → dwelling → extracting → detectingLanguage → resolvingTranslation → preview → pinned → closed`; revoked permissions stop listening immediately and transient event-tap failures use bounded recovery.
 - Preview is transient and connected to the pointer by a short safe corridor. Clicking the card or requesting context insight pins it.
 - The 175,157-entry SQLite dictionary is queried by primary-key index and is never loaded as one in-memory object.
-- Context insight is manual. It uses structured output and displays only “On-device” or “Cloud”. Screenshots and application identity are never sent to the Worker.
-- UI language and warm light/dark appearance follow macOS. Configuration lives in the menu-bar control center; there is no traditional Settings window or provider/API configuration.
+- Context insight is manual. It uses structured output and displays only “On this Mac” or “Online”. Device-model unavailability, network failure, quota exhaustion, and an incompatible online-service contract remain distinct recovery states. Screenshots, application identity and hardware identity are never sent to the Worker.
+- First launch is a mandatory five-stage flow: welcome, Accessibility, Screen Recording, automatic Apple language preparation, and one self-explanatory real interaction. Online explanation consent is requested in place only if the Mac cannot produce the clicked context result; there is no standalone routing page. The experience cannot be completed with fixture or simulated results.
+- UI language and warm light/dark appearance follow macOS. The control center contains only status, pause/resume, hover delay, required permissions, built-in language readiness, cloud-context consent, version and quit. There is no model, provider, API key, AI, direction, language-pack or trigger configuration.
+- The application owns its AppKit delegate for the entire process lifetime, so every successful launch creates exactly one retained status item. Temporary menu-bar visibility changes never terminate the process, and reopening an already-running app reveals the independent control center even when the status item is hidden by macOS.
 
 ## Requirements
 
@@ -51,18 +53,20 @@ npm run check
 npm test
 ```
 
-Build and install the ad-hoc-signed Universal 2 application, or package, verify, and install the DMG:
+Build the Universal 2 application, or build and verify the DMG:
 
 ```bash
 ./build.sh
 ./package.sh
 ```
 
-Every successful `build.sh` or `package.sh` run validates the bundle identifier, Universal 2 slices, and code signature before atomically replacing `/Applications/Pointrans.app`. It does not launch the app or restart the Dock. The workflow removes duplicate application bundles outside Trash, temporary test data, mounted installer copies, and release DerivedData. Trashed copies are unregistered but never deleted or moved. UserDefaults, Keychain data, and macOS permission identity are preserved. `package.sh` keeps `dist/Pointrans-2.0.0.dmg` as the installable artifact; `dist/Pointrans.app` is transient and is removed after installation.
+`build.sh` writes and verifies `build/Artifacts.noindex/Pointrans.app`. `package.sh` writes and verifies the versioned `dist/Pointrans-<version>.dmg`; `dist` never retains a loose `.app`. Xcode DerivedData and the reviewable App artifact both live below `.noindex` directories, and packaging unregisters temporary build copies so Spotlight and Launchpad do not present them as installed applications. Neither command launches, terminates, installs, uninstalls, or changes `/Applications`; installation testing is deliberately user-operated. Build identity is embedded as `PointransSourceRevision`.
 
-For CI or a build that must not modify `/Applications`, run with `AUTO_INSTALL_LATEST=0`. To inspect the transient app and DerivedData locally, use `KEEP_BUILD_ARTIFACTS=1`. An intentional rollback additionally requires `ALLOW_DOWNGRADE=1`. A deliberate manual workflow may opt into launching with `LAUNCH_AFTER_INSTALL=1`; it is off by default.
+The approved v1.1 artwork lives in `Pointrans_Logo_Design_Files/`. Release builds run `scripts/generate_brand_assets.py`: the supplied 1024 software-icon canvas produces every AppIcon size, while the supplied SVG symbol and horizontal lockup are copied losslessly into the asset catalog for the menu bar, onboarding, and control center. Runtime code does not maintain a separate approximation of the logo.
 
-For a public distribution build, set `DEVELOPER_ID_APPLICATION` to the exact signing identity. Set `NOTARY_PROFILE` to a `notarytool` Keychain profile before running `package.sh`; the script will submit, wait, staple, and validate the DMG. The local 2.0 deliverable intentionally uses ad-hoc signing and is not notarized.
+After reviewing the artifact, a user may explicitly install it with `CONFIRM_INSTALL=YES ./scripts/install-latest.sh build/Artifacts.noindex/Pointrans.app`. The installer never launches by default; `LAUNCH_AFTER_INSTALL=1` remains an explicit user choice. Repository build cleanup is similarly opt-in with `CONFIRM_BUILD_CLEANUP=YES ./scripts/cleanup-pointrans-copies.sh` and never touches `/Applications` or user data. After dragging the App out of a DMG, eject the `Pointrans` volume so its read-only source copy is no longer discoverable.
+
+For local installation testing, the build selects an available Apple Development identity (or accepts an explicit `POINTRANS_LOCAL_SIGN_IDENTITY`) so the application has a stable Team ID. It refuses to produce an installable ad-hoc candidate unless `ALLOW_ADHOC_SIGNING=YES` is deliberately set. For public distribution, set `DEVELOPER_ID_APPLICATION` to the exact signing identity and `NOTARY_PROFILE` to a `notarytool` Keychain profile before running `package.sh`; the script will submit, wait, staple, and validate the DMG.
 
 ## Cloudflare Worker
 
@@ -70,8 +74,8 @@ The Worker lives in `Worker/` and exposes:
 
 - `GET /health` — reports route availability without exposing configuration.
 - `GET /version` — reports the exact product SemVer and full source commit deployed to production; it fails closed when either identity is missing.
-- `POST /v1/installations` — signs a random Keychain-backed installation UUID.
-- `POST /v1/context` — validates the Bearer token, enforces 100/600-character limits and returns structured `ContextInsight`.
+- `POST /v1/installations` — accepts only `{}`, creates a server-side random anonymous quota identity, and returns its signed bearer token. The app's existing Keychain installation UUID remains local and is never uploaded.
+- `POST /v1/context` — validates the Bearer token, 100/600-character limits, and the selected word's exact UTF-16 range before returning structured `ContextInsight`.
 
 Each installation receives 30 cloud fallbacks per UTC day. Durable Objects update quota atomically; IP issuance and burst limits provide an additional boundary. Upstream timeouts and 5xx responses refund quota. Logs contain only request ID, route, duration, status, and remaining quota.
 
@@ -100,9 +104,9 @@ The generator writes sorted rows, separate English→Chinese and Chinese→Engli
 
 ## Privacy and permissions
 
-Pointrans stores preferences in UserDefaults and a random installation UUID/token in Keychain. It does not use a hardware identifier. Offline definitions, Accessibility extraction, OCR, Apple Translation, and supported Foundation Models inference remain on the Mac. Cloud fallback sends only the selected word, its limited sentence context, language direction, and a random request ID.
+Pointrans stores the pause state, hover delay, cloud-context consent and versioned onboarding progress in UserDefaults, while preserving the existing Keychain identity and bearer token. It does not use a hardware identifier. Accessibility extraction, OCR, dictionary lookups, Apple Translation, and supported Foundation Models inference remain on the Mac. Cloud fallback sends only the selected word, at most 600 UTF-16 code units of context, the exact target range, language direction, and a random request ID.
 
-The app does not show blocking permission alerts at launch. Permission repair and language-pack preparation are handled inside the menu-bar control center.
+The first-run window is intentionally blocked until both required permissions and the two Apple Translation directions are ready. Later permission repair and automatic language-pack recovery are handled inside the control center; permission results themselves are never persisted.
 
 ## Manual acceptance matrix
 

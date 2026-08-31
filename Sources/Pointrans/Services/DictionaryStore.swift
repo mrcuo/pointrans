@@ -5,6 +5,7 @@ actor DictionaryStore {
     enum StoreError: Error, Sendable {
         case resourceMissing
         case openFailed(String)
+        case integrityFailed(String)
         case queryFailed(String)
     }
 
@@ -24,13 +25,16 @@ actor DictionaryStore {
     private let databaseURL: URL
 
     init(databaseURL: URL? = nil, bundle: Bundle = .main) throws {
+        let resolvedURL: URL
         if let databaseURL {
-            self.databaseURL = databaseURL
+            resolvedURL = databaseURL
         } else if let resource = bundle.url(forResource: "Dictionary", withExtension: "sqlite3") {
-            self.databaseURL = resource
+            resolvedURL = resource
         } else {
             throw StoreError.resourceMissing
         }
+        try Self.validateDatabase(at: resolvedURL)
+        self.databaseURL = resolvedURL
     }
 
     func lookup(
@@ -87,6 +91,48 @@ actor DictionaryStore {
             throw StoreError.openFailed(message)
         }
         if let handle { database = SQLiteHandle(handle) }
+    }
+
+    private static func validateDatabase(at url: URL) throws {
+        var handle: OpaquePointer?
+        let flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX
+        guard sqlite3_open_v2(url.path, &handle, flags, nil) == SQLITE_OK, let openedHandle = handle else {
+            let message: String
+            if let handle, let rawMessage = sqlite3_errmsg(handle) {
+                message = String(cString: rawMessage)
+            } else {
+                message = "Unknown SQLite error"
+            }
+            if let handle { sqlite3_close_v2(handle) }
+            throw StoreError.openFailed(message)
+        }
+        defer { sqlite3_close_v2(openedHandle) }
+
+        guard scalarText("PRAGMA quick_check(1)", handle: openedHandle) == "ok" else {
+            throw StoreError.integrityFailed("SQLite quick_check failed")
+        }
+        guard scalarText("SELECT value FROM metadata WHERE key = 'format_version'", handle: openedHandle) == "1",
+              scalarInteger("SELECT count(*) FROM en_zh", handle: openedHandle) > 0,
+              scalarInteger("SELECT count(*) FROM zh_en", handle: openedHandle) > 0 else {
+            throw StoreError.integrityFailed("Dictionary schema or metadata is invalid")
+        }
+    }
+
+    private static func scalarText(_ sql: String, handle: OpaquePointer) -> String? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = sqlite3_column_text(statement, 0) else { return nil }
+        return String(cString: raw)
+    }
+
+    private static func scalarInteger(_ sql: String, handle: OpaquePointer) -> Int64 {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else { return 0 }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return 0 }
+        return sqlite3_column_int64(statement, 0)
     }
 
     private func normalizedTerm(_ term: String, direction: TranslationDirection) -> String {

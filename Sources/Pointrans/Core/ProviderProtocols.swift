@@ -2,31 +2,36 @@ import CoreGraphics
 import Foundation
 
 protocol TextExtracting: Sendable {
-    func extract(at point: CGPoint, displayID: CGDirectDisplayID, direction: TranslationDirection) async throws -> ExtractionResult
+    func extract(at point: CGPoint, displayID: CGDirectDisplayID) async throws -> ExtractionResult
 }
 
 protocol BaseTranslating: Sendable {
-    /// Fast indexed result. Implementations must not wait for network or language-pack work.
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation
-    /// Optional device translation enrichment. The controller publishes the fast result first.
-    func enrich(_ base: BaseTranslation, word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation
-}
-
-extension BaseTranslating {
-    func enrich(_ base: BaseTranslation, word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        base
-    }
+    /// Resolves the device-AI → Apple Translation → dictionary route.
+    func translate(request: TranslationRequest) async throws -> BaseTranslation
 }
 
 protocol ContextAnalyzing: Sendable {
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult
 }
 
 protocol PermissionProviding: Sendable {
     var accessibilityGranted: Bool { get }
     var screenCaptureGranted: Bool { get }
-    func requestAccessibility()
+    func requestAccessibility() async -> Bool
     func requestScreenCapture() async -> Bool
+}
+
+@MainActor
+protocol EventMonitoring: AnyObject {
+    var onEvent: ((TriggerEvent) -> Void)? { get set }
+    var onAvailabilityChanged: ((Bool) -> Void)? { get set }
+    func start() throws
+    func stop()
+    func setPreviewPointerTracking(_ enabled: Bool)
 }
 
 struct ProviderEnvironment: Sendable {

@@ -25,6 +25,8 @@ export async function requestContextInsight(
         input: JSON.stringify({
           word: input.word,
           context: input.context,
+          targetStart: input.targetStart,
+          targetLength: input.targetLength,
           sourceLanguage: input.sourceLanguage,
           targetLanguage: input.targetLanguage,
         }),

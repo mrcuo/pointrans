@@ -3,44 +3,38 @@ import CoreGraphics
 import Foundation
 
 actor AccessibilityTextExtractor: TextExtracting {
-    enum AXExtractionError: Error, Sendable {
-        case permissionDenied
-        case noElement
-        case unsupportedText
-        case noToken
-    }
-
     func extract(
         at point: CGPoint,
-        displayID: CGDirectDisplayID,
-        direction: TranslationDirection
+        displayID: CGDirectDisplayID
     ) async throws -> ExtractionResult {
         try Task.checkCancellation()
-        guard AXIsProcessTrusted() else { throw AXExtractionError.permissionDenied }
+        guard AXIsProcessTrusted() else { throw ExtractionError.accessibilityPermissionRequired }
 
         let system = AXUIElementCreateSystemWide()
         var hit: AXUIElement?
         guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(point.y), &hit) == .success,
-              let element = hit else { throw AXExtractionError.noElement }
+              let element = hit else { throw ExtractionError.noTextAtPointer }
 
         let resolved = try resolveText(at: point, startingAt: element)
         let text = resolved.text
         let characterRange = resolved.range
-        guard let token = TextTokenizer.token(atUTF16Offset: characterRange.location, in: text, direction: direction) else {
-            throw AXExtractionError.noToken
+        guard let token = TextTokenizer.token(atUTF16Offset: characterRange.location, in: text) else {
+            throw ExtractionError.noTextAtPointer
         }
 
         let tokenRange = NSRange(token.range, in: text)
         let bounds = bounds(for: tokenRange, in: resolved.element) ?? CGRect(origin: point, size: .zero)
-        let context = TextTokenizer.context(around: token.range, in: text)
+        let contextWindow = TextTokenizer.contextWindow(around: token.range, in: text)
         try Task.checkCancellation()
 
         return ExtractionResult(
             word: token.text,
-            context: context.isEmpty ? token.text : context,
+            context: contextWindow?.text ?? token.text,
+            targetUTF16Range: contextWindow?.targetUTF16Range ?? NSRange(location: 0, length: token.text.utf16.count),
             bounds: bounds,
             confidence: 1,
-            source: .accessibility
+            source: .accessibility,
+            detectedLanguage: .detect(token.text)
         )
     }
 
@@ -63,7 +57,7 @@ actor AccessibilityTextExtractor: TextExtracting {
             }
             candidate = parent(of: element)
         }
-        throw AXExtractionError.unsupportedText
+        throw ExtractionError.unsupportedApplication
     }
 
     private func parent(of element: AXUIElement) -> AXUIElement? {
@@ -84,13 +78,13 @@ actor AccessibilityTextExtractor: TextExtracting {
            let title = raw as? String, !title.isEmpty {
             return title
         }
-        throw AXExtractionError.unsupportedText
+        throw ExtractionError.unsupportedApplication
     }
 
     private func range(at point: CGPoint, in element: AXUIElement) throws -> CFRange {
         var mutablePoint = point
         guard let pointValue = AXValueCreate(.cgPoint, &mutablePoint) else {
-            throw AXExtractionError.unsupportedText
+            throw ExtractionError.unsupportedApplication
         }
 
         var raw: CFTypeRef?
@@ -102,12 +96,12 @@ actor AccessibilityTextExtractor: TextExtracting {
         ) == .success,
         let rangeValue = raw,
         CFGetTypeID(rangeValue) == AXValueGetTypeID() else {
-            throw AXExtractionError.unsupportedText
+            throw ExtractionError.unsupportedApplication
         }
 
         var range = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else {
-            throw AXExtractionError.unsupportedText
+            throw ExtractionError.unsupportedApplication
         }
         return range
     }

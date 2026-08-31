@@ -4,9 +4,8 @@ import Observation
 
 enum LanguagePackStatus: Equatable, Sendable {
     case checking
-    case installed
-    case available
     case preparing
+    case installed
     case unsupported
     case failed
 }
@@ -14,44 +13,111 @@ enum LanguagePackStatus: Equatable, Sendable {
 @MainActor
 @Observable
 final class LanguagePackManager {
-    private(set) var status: LanguagePackStatus = .checking
+    private(set) var status: LanguagePackStatus = .checking {
+        didSet { onChange?() }
+    }
     private(set) var configuration: TranslationSession.Configuration?
+    @ObservationIgnored var onChange: (() -> Void)?
+
     private let availability: LanguageAvailability
+    private var pendingDirections: [TranslationDirection] = []
     private var activeDirection: TranslationDirection?
     private var refreshTask: Task<Void, Never>?
+    private let forcedInstalled: Bool
 
-    init() {
+    init(forceInstalledForTesting: Bool = false) {
+        forcedInstalled = forceInstalledForTesting
         if #available(macOS 26.4, *) {
             availability = LanguageAvailability(preferredStrategy: .lowLatency)
         } else {
             availability = LanguageAvailability()
         }
+        if forceInstalledForTesting { status = .installed }
     }
 
-    func refresh(direction: TranslationDirection) {
-        activeDirection = direction
-        configuration = nil
+    var isReady: Bool { status == .installed }
+
+    func ensureRequiredPreparation() {
+        guard refreshTask == nil, configuration == nil else { return }
+        beginRequiredPreparation()
+    }
+
+    func beginRequiredPreparation() {
+        guard !forcedInstalled else {
+            status = .installed
+            return
+        }
         refreshTask?.cancel()
+        configuration = nil
         status = .checking
         refreshTask = Task { [weak self] in
             guard let self else { return }
-            let source = Locale.Language(identifier: direction.sourceLanguage)
-            let target = Locale.Language(identifier: direction.targetLanguage)
-            let value = await availability.status(from: source, to: target)
-            guard !Task.isCancelled, activeDirection == direction else { return }
-            status = switch value {
-            case .installed: .installed
-            case .supported: .available
-            case .unsupported: .unsupported
-            @unknown default: .unsupported
+            defer { self.refreshTask = nil }
+            var missing: [TranslationDirection] = []
+            for direction in TranslationDirection.allCases {
+                let value = await availability.status(
+                    from: Locale.Language(identifier: direction.sourceLanguage),
+                    to: Locale.Language(identifier: direction.targetLanguage)
+                )
+                guard !Task.isCancelled else { return }
+                switch value {
+                case .installed:
+                    break
+                case .supported:
+                    missing.append(direction)
+                case .unsupported:
+                    status = .unsupported
+                    return
+                @unknown default:
+                    status = .unsupported
+                    return
+                }
+            }
+            pendingDirections = missing
+            if missing.isEmpty {
+                status = .installed
+            } else {
+                status = .preparing
+                prepareNextDirection()
             }
         }
     }
 
-    func prepare(direction: TranslationDirection) {
+    func retry() {
+        beginRequiredPreparation()
+    }
+
+    func performPreparation(using session: TranslationSession) async {
+        let expected = activeDirection
+        do {
+            try await session.prepareTranslation()
+            guard expected == activeDirection else { return }
+            if let expected {
+                pendingDirections.removeAll { $0 == expected }
+            }
+            configuration = nil
+            activeDirection = nil
+            if pendingDirections.isEmpty {
+                status = .installed
+            } else {
+                prepareNextDirection()
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard expected == activeDirection else { return }
+            configuration = nil
+            activeDirection = nil
+            status = .failed
+        }
+    }
+
+    private func prepareNextDirection() {
+        guard let direction = pendingDirections.first else {
+            status = .installed
+            return
+        }
         activeDirection = direction
-        refreshTask?.cancel()
-        status = .preparing
         if #available(macOS 26.4, *) {
             configuration = TranslationSession.Configuration(
                 source: Locale.Language(identifier: direction.sourceLanguage),
@@ -65,21 +131,5 @@ final class LanguagePackManager {
             )
         }
         configuration?.invalidate()
-    }
-
-    func performPreparation(using session: TranslationSession) async {
-        let expectedDirection = activeDirection
-        do {
-            try await session.prepareTranslation()
-            guard expectedDirection == activeDirection else { return }
-            status = .installed
-            configuration = nil
-        } catch is CancellationError {
-            guard expectedDirection == activeDirection else { return }
-            status = .available
-        } catch {
-            guard expectedDirection == activeDirection else { return }
-            status = .failed
-        }
     }
 }

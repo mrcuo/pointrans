@@ -7,9 +7,11 @@ private final class SpeechPlayer {
     static let shared = SpeechPlayer()
     private let synthesizer = AVSpeechSynthesizer()
 
-    func speak(_ text: String) {
+    func speak(_ text: String, direction: TranslationDirection) {
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
+        let language = direction == .englishToChinese ? "en-US" : "zh-CN"
+        utterance.voice = AVSpeechSynthesisVoice(language: language)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.92
         synthesizer.speak(utterance)
     }
@@ -97,8 +99,8 @@ struct TranslationCardView: View {
 
     private var speakButton: some View {
         Button {
-            if let word = request?.word {
-                SpeechPlayer.shared.speak(word)
+            if let request {
+                SpeechPlayer.shared.speak(request.word, direction: request.direction)
             }
         } label: {
             Image(systemName: "speaker.wave.2")
@@ -140,11 +142,15 @@ struct TranslationCardView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
+            } else if baseFailure != nil {
+                Label(String(localized: "Translation is temporarily unavailable. Try again."), systemImage: "exclamationmark.circle.fill")
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
             } else {
-                Text(String(localized: "No dictionary result. Prepare the language pack for device translation."))
+                Text(String(localized: "No supported word was found."))
                     .font(.system(size: 12.5))
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -174,7 +180,7 @@ struct TranslationCardView: View {
                             Text(String(localized: "Context insight"))
                                 .font(.system(size: 13.5, weight: .bold))
                             Spacer()
-                            Text(routeLabel(result.route))
+                            Text(routeLabel(result))
                                 .font(.system(size: 10.5, weight: .semibold))
                                 .foregroundStyle(.secondary)
                         }
@@ -211,6 +217,37 @@ struct TranslationCardView: View {
                         .frame(maxHeight: 118)
                     }
                 }
+            } else if let contextFailure,
+                      OnlineExplanationConsentPolicy.shouldPrompt(
+                        failure: contextFailure,
+                        consent: controller.preferences.cloudContextConsent
+                      ) {
+                insightContainer {
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text(String(localized: "This Mac couldn't create the extra explanation."))
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(String(localized: "Pointrans can use an online explanation with only this word and its sentence. It never sends a screenshot or the app you're using."))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Button(String(localized: "Not now")) {
+                                controller.setCloudContextConsent(.denied)
+                            }
+                            Spacer()
+                            Button(String(localized: "Use online explanation")) {
+                                controller.setCloudContextConsent(.allowed)
+                                controller.requestContextInsight()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(PointTheme.cobalt)
+                        }
+                    }
+                }
+            } else if let contextFailure {
+                insightContainer {
+                    contextFailureContent(contextFailure)
+                }
             } else if let failureText {
                 insightContainer {
                     HStack(alignment: .top, spacing: 9) {
@@ -221,7 +258,7 @@ struct TranslationCardView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-            } else if controller.preferences.aiEnabled {
+            } else {
                 Button {
                     controller.requestContextInsight()
                 } label: {
@@ -265,26 +302,96 @@ struct TranslationCardView: View {
             )
     }
 
+    @ViewBuilder
+    private func contextFailureContent(_ failure: TranslationFailure) -> some View {
+        switch failure {
+        case .onlineUnavailable, .onlineServiceIncompatible:
+            VStack(alignment: .leading, spacing: 9) {
+                Text(failure == .onlineServiceIncompatible
+                     ? String(localized: "Online explanation needs a service update.")
+                     : String(localized: "Online explanation couldn't finish."))
+                    .font(.system(size: 13, weight: .semibold))
+                Text(failure == .onlineServiceIncompatible
+                     ? String(localized: "The word translation is complete, but the online explanation service is not ready for this version yet.")
+                     : String(localized: "The word translation is complete. Try this Mac again or check the online explanation."))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button(String(localized: "Try again on this Mac")) {
+                        controller.requestContextInsight(allowsOnlineFallback: false)
+                    }
+                    Spacer()
+                    Button(String(localized: "Check online again")) {
+                        controller.requestContextInsight()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(PointTheme.cobalt)
+                }
+            }
+
+        case .aiUnavailable:
+            VStack(alignment: .leading, spacing: 9) {
+                Text(String(localized: "An explanation isn't available on this Mac right now."))
+                    .font(.system(size: 13, weight: .semibold))
+                HStack {
+                    Button(String(localized: "Try again on this Mac")) {
+                        controller.requestContextInsight(allowsOnlineFallback: false)
+                    }
+                    Spacer()
+                    if controller.preferences.cloudContextConsent != .denied {
+                        Button(String(localized: "Use online explanation")) {
+                            controller.requestContextInsight()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(PointTheme.cobalt)
+                    }
+                }
+            }
+
+        case .quotaExhausted(let resetAt):
+            Label(
+                resetAt.map {
+                    String(
+                        format: String(localized: "Cloud context quota resets at %@."),
+                        $0.formatted(date: .abbreviated, time: .shortened)
+                    )
+                } ?? String(localized: "Today's cloud context quota is used up. On-device analysis remains available."),
+                systemImage: "exclamationmark.circle.fill"
+            )
+            .font(.system(size: 12.5))
+            .foregroundStyle(.secondary)
+
+        case .message(let value):
+            Label(value, systemImage: "exclamationmark.circle.fill")
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+
+        default:
+            Label(String(localized: "Context insight is temporarily unavailable."), systemImage: "exclamationmark.circle.fill")
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var previewFooter: some View {
         HStack(spacing: 10) {
             sourceBadge
             Spacer()
-            if controller.preferences.aiEnabled {
-                Button {
-                    controller.requestContextInsight()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "sparkles")
-                        Text(String(localized: "Context insight"))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .font(.system(size: 12, weight: .semibold))
+            Button {
+                controller.requestContextInsight()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkles")
+                    Text(String(localized: "Context insight"))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(PointTheme.cobalt)
-                .accessibilityIdentifier("context-insight-button")
+                .font(.system(size: 12, weight: .semibold))
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(PointTheme.cobalt)
+            .accessibilityIdentifier("context-insight-button")
         }
         .padding(.horizontal, 18)
         .frame(height: 49)
@@ -305,8 +412,8 @@ struct TranslationCardView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(controller.preferences.aiEnabled ? PointTheme.cobalt : .secondary)
-            .disabled(!controller.preferences.aiEnabled || isAIAnalyzing)
+            .foregroundStyle(PointTheme.cobalt)
+            .disabled(isAIAnalyzing)
             .accessibilityIdentifier("context-insight-button")
         }
         .font(.system(size: 12.5, weight: .semibold))
@@ -358,10 +465,21 @@ struct TranslationCardView: View {
     private var failureText: String? {
         guard case .failed(_, let failure) = controller.state else { return nil }
         return switch failure {
-        case .quotaExhausted:
-            String(localized: "Today's cloud context quota is used up. On-device analysis remains available.")
+        case .quotaExhausted(let resetAt):
+            if let resetAt {
+                String(
+                    format: String(localized: "Cloud context quota resets at %@."),
+                    resetAt.formatted(date: .abbreviated, time: .shortened)
+                )
+            } else {
+                String(localized: "Today's cloud context quota is used up. On-device analysis remains available.")
+            }
         case .aiUnavailable:
             String(localized: "Context insight is temporarily unavailable.")
+        case .onlineUnavailable:
+            String(localized: "Online explanation couldn't finish.")
+        case .onlineServiceIncompatible:
+            String(localized: "Online explanation needs a service update.")
         case .message(let value):
             value
         default:
@@ -369,24 +487,43 @@ struct TranslationCardView: View {
         }
     }
 
+    private var contextFailure: TranslationFailure? {
+        guard case .failed(_, let failure) = controller.insightPhase else { return nil }
+        return failure
+    }
+
     private var sourceLabel: String {
-        switch (base?.source, controller.extraction?.source) {
-        case (.appleTranslation, _): String(localized: "On-device translation")
+        if baseFailure != nil { return String(localized: "Translation unavailable") }
+        return switch (base?.source, controller.extraction?.source) {
+        case (.deviceAI, _): String(localized: "On-device AI")
+        case (.appleTranslation, _): String(localized: "Apple Translation")
         case (_, .ocr): String(localized: "Offline dictionary · OCR")
         default: String(localized: "Offline dictionary")
         }
     }
 
     private var sourceIcon: String {
-        base?.source == .appleTranslation ? "iphone" : "character.book.closed"
+        if baseFailure != nil { return "exclamationmark.triangle" }
+        return switch base?.source {
+        case .deviceAI: "sparkles"
+        case .appleTranslation: "iphone"
+        default: "character.book.closed"
+        }
+    }
+
+    private var baseFailure: TranslationFailure? {
+        guard case .failed(_, let failure) = controller.basePhase else { return nil }
+        return failure
     }
 
     private var divider: some View {
         Rectangle().fill(PointTheme.hairline).frame(height: 0.7)
     }
 
-    private func routeLabel(_ route: InsightRoute) -> String {
-        route == .onDevice ? String(localized: "On-device") : String(localized: "Cloud")
+    private func routeLabel(_ result: InsightResult) -> String {
+        guard result.route == .cloud else { return String(localized: "On-device") }
+        guard let remaining = result.remainingCloudQuota else { return String(localized: "Cloud") }
+        return String(format: String(localized: "Cloud · %d remaining"), remaining)
     }
 
     private func copyCurrentResult() {

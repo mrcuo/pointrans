@@ -3,12 +3,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SOURCE_APP="${1:-$PROJECT_ROOT/dist/Pointrans.app}"
+SOURCE_APP="${1:-$PROJECT_ROOT/build/Artifacts.noindex/Pointrans.app}"
 INSTALL_APP="/Applications/Pointrans.app"
 STAGING_APP="/Applications/.Pointrans.app.installing"
 PREVIOUS_APP="/Applications/.Pointrans.app.previous"
 EXPECTED_BUNDLE_ID="com.tailcasso.Pointrans"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+if [[ "${CONFIRM_INSTALL:-}" != "YES" ]]; then
+  echo "Installation is a user-operated action." >&2
+  echo "Re-run with CONFIRM_INSTALL=YES after reviewing SOURCE_APP=$SOURCE_APP." >&2
+  exit 2
+fi
 
 read_plist() {
   /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist"
@@ -56,7 +62,7 @@ fi
 
 rm -rf -- "$STAGING_APP" "$PREVIOUS_APP"
 ditto "$SOURCE_APP" "$STAGING_APP"
-xattr -dr com.apple.quarantine "$STAGING_APP" 2>/dev/null || true
+xattr -cr "$STAGING_APP"
 verify_app "$STAGING_APP"
 
 # Stop only processes whose executable name belongs to this application.

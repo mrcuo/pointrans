@@ -29,21 +29,26 @@ enum EventTapRoutingPolicy {
     }
 }
 
+enum FixedTriggerPolicy {
+    static let leftOptionKeyCode = CGKeyCode(kVK_Option)
+
+    static func acceptsModifierTransition(keyCode: CGKeyCode) -> Bool {
+        keyCode == leftOptionKeyCode
+    }
+
+    static func acceptsOnboardingConfirmation(keyCode: CGKeyCode, isPressed: Bool) -> Bool {
+        isPressed && acceptsModifierTransition(keyCode: keyCode)
+    }
+}
+
 private final class EventTapCallbackState: @unchecked Sendable {
     private let lock = NSLock()
-    private var modifierKeyCode: CGKeyCode
+    private let modifierKeyCode: CGKeyCode
     private var modifierIsDown = false
     private var tracksPreviewPointer = false
 
     init(modifierKeyCode: CGKeyCode) {
         self.modifierKeyCode = modifierKeyCode
-    }
-
-    func updateModifierKeyCode(_ keyCode: CGKeyCode) {
-        lock.withLock {
-            modifierKeyCode = keyCode
-            modifierIsDown = false
-        }
     }
 
     func updatePreviewTracking(_ enabled: Bool) {
@@ -71,7 +76,7 @@ private final class EventTapCallbackState: @unchecked Sendable {
 }
 
 @MainActor
-final class EventTapMonitor {
+final class EventTapMonitor: EventMonitoring {
     enum MonitorError: Error {
         case eventTapUnavailable
     }
@@ -81,24 +86,11 @@ final class EventTapMonitor {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var modifier: TriggerModifier
     private var isModifierDown = false
     private let callbackState: EventTapCallbackState
 
-    init(modifier: TriggerModifier) {
-        self.modifier = modifier
-        callbackState = EventTapCallbackState(modifierKeyCode: modifier.keyCode)
-    }
-
-    func updateModifier(_ modifier: TriggerModifier) {
-        guard self.modifier != modifier else { return }
-        if isModifierDown {
-            isModifierDown = false
-            let point = CGEvent(source: nil)?.location ?? .zero
-            onEvent?(.modifierReleased(point: point, timestamp: ProcessInfo.processInfo.systemUptime))
-        }
-        self.modifier = modifier
-        callbackState.updateModifierKeyCode(modifier.keyCode)
+    init() {
+        callbackState = EventTapCallbackState(modifierKeyCode: FixedTriggerPolicy.leftOptionKeyCode)
     }
 
     func setPreviewPointerTracking(_ enabled: Bool) {
@@ -160,8 +152,11 @@ final class EventTapMonitor {
             }
 
         case .flagsChanged:
-            guard raw.keyCode == modifier.keyCode else { return }
-            let pressed = CGEventSource.keyState(.combinedSessionState, key: modifier.keyCode)
+            guard FixedTriggerPolicy.acceptsModifierTransition(keyCode: raw.keyCode) else { return }
+            let pressed = CGEventSource.keyState(
+                .combinedSessionState,
+                key: FixedTriggerPolicy.leftOptionKeyCode
+            )
             guard pressed != isModifierDown else { return }
             isModifierDown = pressed
             onEvent?(pressed
@@ -205,20 +200,5 @@ final class EventTapMonitor {
             }
         }
         return Unmanaged.passUnretained(event)
-    }
-}
-
-private extension TriggerModifier {
-    var keyCode: CGKeyCode {
-        switch self {
-        case .leftOption: CGKeyCode(kVK_Option)
-        case .rightOption: CGKeyCode(kVK_RightOption)
-        case .leftCommand: CGKeyCode(kVK_Command)
-        case .rightCommand: CGKeyCode(kVK_RightCommand)
-        case .leftControl: CGKeyCode(kVK_Control)
-        case .rightControl: CGKeyCode(kVK_RightControl)
-        case .leftShift: CGKeyCode(kVK_Shift)
-        case .rightShift: CGKeyCode(kVK_RightShift)
-        }
     }
 }

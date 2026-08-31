@@ -9,7 +9,7 @@ final class ContextAnalyzerRouterTests: XCTestCase {
             cloud: cloud
         )
 
-        let result = try await router.analyze(request: request(), base: base())
+        let result = try await router.analyze(request: request(), base: base(), allowsCloudFallback: true)
         XCTAssertEqual(result.route, .onDevice)
         XCTAssertEqual(result.insight.contextualMeaning, "device")
         let callCount = await cloud.callCount()
@@ -24,7 +24,7 @@ final class ContextAnalyzerRouterTests: XCTestCase {
                 cloud: cloud
             )
 
-            let result = try await router.analyze(request: request(), base: base())
+            let result = try await router.analyze(request: request(), base: base(), allowsCloudFallback: true)
             XCTAssertEqual(result.route, .cloud)
             let callCount = await cloud.callCount()
             XCTAssertEqual(callCount, 1)
@@ -39,7 +39,7 @@ final class ContextAnalyzerRouterTests: XCTestCase {
         )
 
         do {
-            _ = try await router.analyze(request: request(), base: base())
+            _ = try await router.analyze(request: request(), base: base(), allowsCloudFallback: true)
             XCTFail("Expected a safety refusal")
         } catch let error as ContextAnalyzerError {
             XCTAssertEqual(error, .safetyRefusal)
@@ -58,7 +58,7 @@ final class ContextAnalyzerRouterTests: XCTestCase {
         )
 
         do {
-            _ = try await router.analyze(request: request(), base: base())
+            _ = try await router.analyze(request: request(), base: base(), allowsCloudFallback: true)
             XCTFail("Expected cancellation")
         } catch is CancellationError {
             // Expected.
@@ -67,6 +67,44 @@ final class ContextAnalyzerRouterTests: XCTestCase {
         }
         let callCount = await cloud.callCount()
         XCTAssertEqual(callCount, 0)
+    }
+
+    func testDeniedCloudConsentNeverSendsContextOffDevice() async {
+        let cloud = CloudAnalyzerSpy(result: .success(cloudResult()))
+        let router = ContextAnalyzerRouter(
+            apple: DeviceAnalyzerStub(result: .failure(.unavailable)),
+            cloud: cloud
+        )
+
+        do {
+            _ = try await router.analyze(request: request(), base: base(), allowsCloudFallback: false)
+            XCTFail("Expected the device error to remain visible")
+        } catch let error as ContextAnalyzerError {
+            XCTAssertEqual(error, .unavailable)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        let callCount = await cloud.callCount()
+        XCTAssertEqual(callCount, 0)
+    }
+
+    func testOnlineServiceFailureRemainsDistinctAfterDeviceFallback() async {
+        let cloud = CloudAnalyzerSpy(result: .failure(.onlineServiceIncompatible))
+        let router = ContextAnalyzerRouter(
+            apple: DeviceAnalyzerStub(result: .failure(.unavailable)),
+            cloud: cloud
+        )
+
+        do {
+            _ = try await router.analyze(request: request(), base: base(), allowsCloudFallback: true)
+            XCTFail("Expected the online service error")
+        } catch let error as ContextAnalyzerError {
+            XCTAssertEqual(error, .onlineServiceIncompatible)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        let callCount = await cloud.callCount()
+        XCTAssertEqual(callCount, 1)
     }
 
     private func request() -> TranslationRequest {

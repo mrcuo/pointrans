@@ -20,6 +20,23 @@ final class TextTokenizerTests: XCTestCase {
         XCTAssertTrue(token?.text.contains("语") == true)
     }
 
+    func testAutomaticSelectionUsesTheScriptUnderThePointerInMixedText() throws {
+        let text = "Open 设置 to continue"
+        let englishOffset = (text as NSString).range(of: "Open").location
+        let chineseOffset = (text as NSString).range(of: "设置").location
+
+        let english = try XCTUnwrap(TextTokenizer.token(atUTF16Offset: englishOffset, in: text))
+        let chinese = try XCTUnwrap(TextTokenizer.token(atUTF16Offset: chineseOffset, in: text))
+
+        XCTAssertEqual(DetectedLanguage.detect(english.text), .english)
+        XCTAssertEqual(DetectedLanguage.detect(chinese.text), .simplifiedChinese)
+    }
+
+    func testUnsupportedScriptsAndPunctuationDoNotProduceADirection() {
+        XCTAssertEqual(DetectedLanguage.detect("123…"), .unsupported)
+        XCTAssertNil(DetectedLanguage.detect("123…").direction)
+    }
+
     func testLargeWhitespaceDoesNotSelectAnUnrelatedNearbyWord() {
         let text = "hello          world"
         let whitespaceOffset = (text as NSString).range(of: "          ").location + 5

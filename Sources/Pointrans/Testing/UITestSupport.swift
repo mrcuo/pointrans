@@ -14,45 +14,41 @@ enum UITestSupport {
     }
 
     static func environment() -> ProviderEnvironment {
-        ProviderEnvironment(
+        let permissionProvider = permissions()
+        return ProviderEnvironment(
             extractor: FixtureExtractor(),
             translator: FixtureTranslator(),
             analyzer: FixtureAnalyzer(shouldFail: scenario == "ai-failure"),
-            permissions: FixturePermissions(granted: scenario != "permissions")
+            permissions: permissionProvider
         )
+    }
+
+    static func permissions() -> any PermissionProviding {
+        FixturePermissions(granted: scenario != "permissions")
     }
 }
 
 private struct FixtureExtractor: TextExtracting {
-    func extract(at point: CGPoint, displayID: CGDirectDisplayID, direction: TranslationDirection) async throws -> ExtractionResult {
+    func extract(at point: CGPoint, displayID: CGDirectDisplayID) async throws -> ExtractionResult {
         ExtractionResult(
             word: "pulling",
             context: "She kept pulling the thread until the knot came loose.",
             bounds: CGRect(x: point.x - 20, y: point.y - 8, width: 48, height: 18),
             confidence: 1,
-            source: .accessibility
+            source: .accessibility,
+            detectedLanguage: .english
         )
     }
 }
 
 private struct FixtureTranslator: BaseTranslating {
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
+    func translate(request: TranslationRequest) async throws -> BaseTranslation {
         BaseTranslation(
             meanings: ["拉动", "牵引", "抽出"],
-            deviceTranslation: nil,
+            deviceTranslation: "拉动",
             phonetic: "/ˈpʊlɪŋ/",
             pinyin: nil,
-            source: .dictionary
-        )
-    }
-
-    func enrich(_ base: BaseTranslation, word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        BaseTranslation(
-            meanings: base.meanings,
-            deviceTranslation: "拉动",
-            phonetic: base.phonetic,
-            pinyin: base.pinyin,
-            source: .dictionaryAndApple
+            source: .deviceAI
         )
     }
 }
@@ -60,7 +56,11 @@ private struct FixtureTranslator: BaseTranslating {
 private struct FixtureAnalyzer: ContextAnalyzing {
     let shouldFail: Bool
 
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
         // Keep the loading state visible long enough for deterministic UI
         // verification without changing production timing.
         try await Task.sleep(for: .milliseconds(500))
@@ -83,7 +83,7 @@ private struct FixturePermissions: PermissionProviding {
     let granted: Bool
     var accessibilityGranted: Bool { granted }
     var screenCaptureGranted: Bool { granted }
-    func requestAccessibility() {}
+    func requestAccessibility() async -> Bool { granted }
     func requestScreenCapture() async -> Bool { granted }
 }
 #endif

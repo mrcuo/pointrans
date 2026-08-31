@@ -2,7 +2,7 @@ import XCTest
 
 @MainActor
 final class AppPreferencesTests: XCTestCase {
-    func testMigratesLegacyModifierAndPreservesUserChoices() {
+    func testMigrationRemovesRetiredConfigurationAndPreservesSupportedChoices() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         defaults.set("option", forKey: "modifierKey")
@@ -13,11 +13,11 @@ final class AppPreferencesTests: XCTestCase {
 
         let preferences = AppPreferences(defaults: defaults)
 
-        XCTAssertEqual(preferences.triggerModifier, .leftOption)
         XCTAssertFalse(preferences.translationEnabled)
-        XCTAssertEqual(preferences.direction, .chineseToEnglish)
         XCTAssertEqual(preferences.hoverDelay, 0.2)
-        XCTAssertTrue(preferences.aiEnabled)
+        XCTAssertNil(defaults.object(forKey: "modifierKey"))
+        XCTAssertNil(defaults.object(forKey: "translationMode"))
+        XCTAssertNil(defaults.object(forKey: "aiEnabled"))
     }
 
     func testDeletesLegacySecretsAndEndpoint() {
@@ -44,6 +44,46 @@ final class AppPreferencesTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         defaults.set(4.0, forKey: "hoverDelay")
         XCTAssertEqual(AppPreferences(defaults: defaults).hoverDelay, 1.0)
+    }
+
+    func testOnboardingIsVersionedAndResumesAtPersistedStage() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(OnboardingStage.screenCapture.rawValue, forKey: "onboardingStage")
+        defaults.set(CloudContextConsent.denied.rawValue, forKey: "cloudContextConsent")
+
+        let preferences = AppPreferences(defaults: defaults)
+
+        XCTAssertFalse(preferences.didCompleteOnboarding)
+        XCTAssertEqual(preferences.onboardingStage, .screenCapture)
+        XCTAssertEqual(preferences.cloudContextConsent, .denied)
+
+        preferences.didCompleteOnboarding = true
+        XCTAssertEqual(preferences.onboardingVersion, AppPreferences.currentOnboardingVersion)
+        XCTAssertEqual(preferences.onboardingStage, .complete)
+    }
+
+    func testLegacyOnboardingDoesNotBypassTheNewMandatoryExperience() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(true, forKey: "didCompleteOnboarding")
+
+        let preferences = AppPreferences(defaults: defaults)
+
+        XCTAssertFalse(preferences.didCompleteOnboarding)
+        XCTAssertLessThan(preferences.onboardingVersion, AppPreferences.currentOnboardingVersion)
+    }
+
+    func testLegacyPrivacyPageResumesInTheIntegratedGuidedExperience() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("privacy", forKey: "onboardingStage")
+        defaults.set(2, forKey: "onboardingVersion")
+
+        let preferences = AppPreferences(defaults: defaults)
+
+        XCTAssertFalse(preferences.didCompleteOnboarding)
+        XCTAssertEqual(preferences.onboardingStage, .guidedExperience)
     }
 
     private func makeDefaults() -> (UserDefaults, String) {

@@ -8,7 +8,7 @@ final class HybridTextExtractorTests: XCTestCase {
         let ocr = ExtractorStub(behavior: .success(extraction(word: "ocr", source: .ocr)))
         let hybrid = HybridTextExtractor(accessibility: accessibility, ocr: ocr)
 
-        let result = try await hybrid.extract(at: .zero, displayID: 1, direction: .englishToChinese)
+        let result = try await hybrid.extract(at: .zero, displayID: 1)
 
         XCTAssertEqual(result, expected)
         let accessibilityCalls = await accessibility.callCount
@@ -24,7 +24,7 @@ final class HybridTextExtractorTests: XCTestCase {
         let ocr = ExtractorStub(behavior: .success(expected))
         let hybrid = HybridTextExtractor(accessibility: accessibility, ocr: ocr)
 
-        let result = try await hybrid.extract(at: point, displayID: 42, direction: .englishToChinese)
+        let result = try await hybrid.extract(at: point, displayID: 42)
 
         XCTAssertEqual(result, expected)
         let capturedPoint = await ocr.lastPoint
@@ -39,7 +39,7 @@ final class HybridTextExtractorTests: XCTestCase {
         let hybrid = HybridTextExtractor(accessibility: accessibility, ocr: ocr)
 
         do {
-            _ = try await hybrid.extract(at: .zero, displayID: 1, direction: .englishToChinese)
+            _ = try await hybrid.extract(at: .zero, displayID: 1)
             XCTFail("Expected cancellation")
         } catch is CancellationError {
             // Expected.
@@ -84,8 +84,7 @@ private actor ExtractorStub: TextExtracting {
 
     func extract(
         at point: CGPoint,
-        displayID: CGDirectDisplayID,
-        direction: TranslationDirection
+        displayID: CGDirectDisplayID
     ) async throws -> ExtractionResult {
         callCount += 1
         lastPoint = point

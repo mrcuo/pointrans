@@ -15,16 +15,35 @@ struct HybridTextExtractor: TextExtracting, Sendable {
 
     func extract(
         at point: CGPoint,
-        displayID: CGDirectDisplayID,
-        direction: TranslationDirection
+        displayID: CGDirectDisplayID
     ) async throws -> ExtractionResult {
+        let accessibilityFailure: ExtractionError
         do {
-            return try await accessibility.extract(at: point, displayID: displayID, direction: direction)
+            return try await accessibility.extract(at: point, displayID: displayID)
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as ExtractionError {
+            accessibilityFailure = error
         } catch {
-            try Task.checkCancellation()
-            return try await ocr.extract(at: point, displayID: displayID, direction: direction)
+            accessibilityFailure = .unsupportedApplication
+        }
+
+        try Task.checkCancellation()
+        do {
+            return try await ocr.extract(at: point, displayID: displayID)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let ocrFailure as ExtractionError {
+            if accessibilityFailure == .accessibilityPermissionRequired {
+                throw accessibilityFailure
+            }
+            if ocrFailure == .screenCapturePermissionRequired {
+                throw ocrFailure
+            }
+            if accessibilityFailure == .noTextAtPointer && ocrFailure == .noTextAtPointer {
+                throw ExtractionError.noTextAtPointer
+            }
+            throw ocrFailure
         }
     }
 }

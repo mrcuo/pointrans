@@ -6,15 +6,26 @@ final class PointransUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testControlCenterAndPermissionsNavigation() throws {
+    func testControlCenterContainsOnlyLockedProductControls() throws {
         let app = launch(scenario: "control-center")
-        XCTAssertTrue(app.staticTexts["Pointrans"].waitForExistence(timeout: 3))
+        XCTAssertTrue(element("control-center-main", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Hold Left Option and hover"].exists)
+        XCTAssertTrue(app.staticTexts["English and Chinese are detected automatically"].exists)
         XCTAssertTrue(element("translation-toggle", in: app).exists)
+        XCTAssertTrue(element("hover-delay-slider", in: app).exists)
 
-        app.buttons["permissions-page-button"].click()
-        XCTAssertTrue(app.staticTexts["Accessibility"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Trigger key"].exists)
+        XCTAssertFalse(app.staticTexts["Direction"].exists)
+        XCTAssertFalse(app.staticTexts["Provider"].exists)
+        XCTAssertFalse(app.staticTexts["API Key"].exists)
+    }
+
+    func testMissingEitherRequiredPermissionIsVisibleInControlCenter() throws {
+        let app = launch(scenario: "permissions")
+        XCTAssertTrue(element("control-center-main", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Accessibility"].exists)
         XCTAssertTrue(app.staticTexts["Screen Recording"].exists)
-        XCTAssertTrue(app.buttons["permissions-done-button"].exists)
+        XCTAssertGreaterThanOrEqual(app.buttons.matching(identifier: "Open Settings").count, 2)
     }
 
     func testPreviewPinsAndShowsStructuredInsight() throws {
@@ -38,11 +49,35 @@ final class PointransUITests: XCTestCase {
         XCTAssertFalse(element("translation-pinned", in: app).waitForExistence(timeout: 1))
     }
 
+    func testOnboardingLeadsDirectlyIntoTheVisibleRealExperience() throws {
+        let app = launch(scenario: "onboarding")
+        XCTAssertTrue(element("onboarding-window", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Quit Pointrans"].exists)
+
+        let optionBadge = element("welcome-left-option-badge", in: app)
+        XCTAssertTrue(optionBadge.waitForExistence(timeout: 2))
+        app.typeKey(XCUIKeyboardKey.option, modifierFlags: [])
+
+        for _ in 0..<3 {
+            let button = app.buttons["onboarding-continue-button"]
+            XCTAssertTrue(button.waitForExistence(timeout: 2))
+            XCTAssertTrue(button.isEnabled)
+            button.click()
+        }
+
+        XCTAssertTrue(element("guided-target-word", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(element("guided-live-result", in: app).exists)
+        XCTAssertTrue(app.staticTexts["Move the pointer onto the blue word, then hold Left Option."].exists)
+        XCTAssertFalse(app.staticTexts["Choose how context can recover"].exists)
+        XCTAssertFalse(app.buttons["Allow cloud fallback"].exists)
+        XCTAssertFalse(app.buttons["onboarding-finish-button"].exists)
+    }
+
     func testControlCenterFollowsChineseAndDarkAppearance() throws {
         let app = launch(scenario: "control-center", language: "zh-Hans", dark: true)
-        XCTAssertTrue(app.staticTexts["光标翻译"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["permissions-page-button"].exists)
-        XCTAssertTrue(element("translation-toggle", in: app).exists)
+        XCTAssertTrue(element("control-center-main", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["按住左 Option 并悬停"].exists)
+        XCTAssertTrue(app.staticTexts["自动识别英文与中文"].exists)
     }
 
     private func launch(scenario: String, language: String = "en", dark: Bool = false) -> XCUIApplication {

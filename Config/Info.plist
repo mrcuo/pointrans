@@ -20,18 +20,22 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-    <key>LSUIElement</key>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSUIElement</key>
     <true/>
     <key>NSAccessibilityUsageDescription</key>
-    <string>Pointrans uses Accessibility to detect the chosen trigger key and read text under the pointer.</string>
+    <string>Pointrans uses Accessibility to listen for Left Option and read text under the pointer.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>Pointrans uses Screen Recording only to recognize text when an app does not expose it through Accessibility.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 CuoStudio.</string>
     <key>PointransWorkerURL</key>
     <string>$(POINTRANS_WORKER_URL)</string>
+    <key>PointransSourceRevision</key>
+    <string>$(POINTRANS_SOURCE_REVISION)</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

@@ -6,19 +6,22 @@ import Observation
 final class AppPreferences {
     private enum Key {
         static let translationEnabled = "translationEnabled"
-        static let modifierKey = "modifierKey"
         static let hoverDelay = "hoverDelay"
-        static let translationMode = "translationMode"
-        static let aiEnabled = "aiEnabled"
         static let didMigrateToV2 = "didMigrateToV2"
         static let didCompleteOnboarding = "didCompleteOnboarding"
+        static let onboardingVersion = "onboardingVersion"
+        static let onboardingStage = "onboardingStage"
+        static let cloudContextConsent = "cloudContextConsent"
 
         static let removedKeys = [
             "deepseekApiKey",
             "deepseekEndpoint",
             "aiProvider",
             "aiModel",
-            "customEndpoint"
+            "customEndpoint",
+            "modifierKey",
+            "translationMode",
+            "aiEnabled"
         ]
     }
 
@@ -26,23 +29,43 @@ final class AppPreferences {
     private var isLoading = true
 
     var translationEnabled: Bool { didSet { persist(Key.translationEnabled, translationEnabled) } }
-    var triggerModifier: TriggerModifier { didSet { persist(Key.modifierKey, triggerModifier.rawValue) } }
     var hoverDelay: Double { didSet { persist(Key.hoverDelay, normalizedDelay(hoverDelay)) } }
-    var direction: TranslationDirection { didSet { persist(Key.translationMode, direction.rawValue) } }
-    var aiEnabled: Bool { didSet { persist(Key.aiEnabled, aiEnabled) } }
-    var didCompleteOnboarding: Bool { didSet { persist(Key.didCompleteOnboarding, didCompleteOnboarding) } }
+    var onboardingVersion: Int { didSet { persist(Key.onboardingVersion, onboardingVersion) } }
+    var onboardingStage: OnboardingStage { didSet { persist(Key.onboardingStage, onboardingStage.rawValue) } }
+    var cloudContextConsent: CloudContextConsent {
+        didSet { persist(Key.cloudContextConsent, cloudContextConsent.rawValue) }
+    }
+
+    var didCompleteOnboarding: Bool {
+        get { onboardingVersion >= Self.currentOnboardingVersion }
+        set {
+            onboardingVersion = newValue ? Self.currentOnboardingVersion : 0
+            if newValue { onboardingStage = .complete }
+        }
+    }
+
+    private static let legacyOnboardingVersion = 1
+    static let currentOnboardingVersion = 3
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         Self.migrateLegacyValues(in: defaults)
 
         translationEnabled = defaults.object(forKey: Key.translationEnabled) as? Bool ?? true
-        triggerModifier = Self.migratedModifier(defaults.string(forKey: Key.modifierKey))
         hoverDelay = Self.clampedDelay(defaults.object(forKey: Key.hoverDelay) as? Double ?? 0.25)
-        direction = TranslationDirection(rawValue: defaults.string(forKey: Key.translationMode) ?? "")
-            ?? Self.defaultDirection
-        aiEnabled = defaults.object(forKey: Key.aiEnabled) as? Bool ?? true
-        didCompleteOnboarding = defaults.bool(forKey: Key.didCompleteOnboarding)
+        let legacyComplete = defaults.bool(forKey: Key.didCompleteOnboarding)
+        onboardingVersion = defaults.object(forKey: Key.onboardingVersion) as? Int
+            ?? (legacyComplete ? Self.legacyOnboardingVersion : 0)
+        let persistedStage = defaults.string(forKey: Key.onboardingStage) ?? ""
+        // Version 2 exposed cloud routing as a standalone onboarding page.
+        // Version 3 asks only at the exact moment an online explanation is
+        // needed, so an interrupted legacy privacy page resumes in practice.
+        onboardingStage = persistedStage == "privacy"
+            ? .guidedExperience
+            : OnboardingStage(rawValue: persistedStage) ?? (legacyComplete ? .complete : .welcome)
+        cloudContextConsent = CloudContextConsent(
+            rawValue: defaults.string(forKey: Key.cloudContextConsent) ?? ""
+        ) ?? .undecided
         isLoading = false
     }
 
@@ -59,23 +82,8 @@ final class AppPreferences {
         return value
     }
 
-    private static var defaultDirection: TranslationDirection {
-        let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
-        return preferred.hasPrefix("zh") ? .englishToChinese : .chineseToEnglish
-    }
-
     private static func clampedDelay(_ value: Double) -> Double {
         min(max(value, 0.15), 1.0)
-    }
-
-    private static func migratedModifier(_ raw: String?) -> TriggerModifier {
-        if let raw, let exact = TriggerModifier(rawValue: raw) { return exact }
-        return switch raw?.lowercased() {
-        case "command": .leftCommand
-        case "control": .leftControl
-        case "shift": .leftShift
-        default: .leftOption
-        }
     }
 
     static func migrateLegacyValues(in defaults: UserDefaults) {
@@ -85,12 +93,6 @@ final class AppPreferences {
 
         guard !defaults.bool(forKey: Key.didMigrateToV2) else { return }
 
-        if let oldModifier = defaults.string(forKey: Key.modifierKey) {
-            defaults.set(migratedModifier(oldModifier).rawValue, forKey: Key.modifierKey)
-        }
-        if defaults.object(forKey: Key.aiEnabled) == nil {
-            defaults.set(true, forKey: Key.aiEnabled)
-        }
         if let delay = defaults.object(forKey: Key.hoverDelay) as? Double {
             defaults.set(clampedDelay(delay), forKey: Key.hoverDelay)
         }

@@ -92,15 +92,15 @@ function executionContext(): Pick<ExecutionContext, "waitUntil"> {
   return { waitUntil: () => undefined };
 }
 
-function installationRequest(id = INSTALLATION_ID, ip = "203.0.113.8"): Request {
+function installationRequest(ip = "203.0.113.8", body: Record<string, unknown> = {}): Request {
   return new Request("https://pointrans.test/v1/installations", {
     method: "POST",
     headers: { "content-type": "application/json", "cf-connecting-ip": ip },
-    body: JSON.stringify({ installationId: id, appVersion: "2.0.0" }),
+    body: JSON.stringify(body),
   });
 }
 
-function contextRequest(token: string, requestId = crypto.randomUUID(), overrides: Record<string, unknown> = {}): Request {
+function contextRequest(token: string, requestId: string = crypto.randomUUID(), overrides: Record<string, unknown> = {}): Request {
   return new Request("https://pointrans.test/v1/context", {
     method: "POST",
     headers: {
@@ -112,6 +112,8 @@ function contextRequest(token: string, requestId = crypto.randomUUID(), override
       requestId,
       word: "pulling",
       context: "She kept pulling the thread.",
+      targetStart: 9,
+      targetLength: 7,
       sourceLanguage: "en",
       targetLanguage: "zh-Hans",
       ...overrides,
@@ -138,12 +140,11 @@ describe("installation tokens", () => {
   it("rate limits token issuance by IP", async () => {
     const env = makeEnv();
     const { runtime } = makeRuntime();
-    for (let index = 0; index < 10; index += 1) {
-      const id = `2f9050b8-4fd6-4c48-84ec-${String(index).padStart(12, "0")}`;
-      expect((await handleRequest(installationRequest(id), env, executionContext(), runtime)).status).toBe(201);
+    for (let index = 0; index < 120; index += 1) {
+      expect((await handleRequest(installationRequest(), env, executionContext(), runtime)).status).toBe(201);
     }
     const denied = await handleRequest(
-      installationRequest("2f9050b8-4fd6-4c48-84ec-999999999999"),
+      installationRequest(),
       env,
       executionContext(),
       runtime,
@@ -158,6 +159,31 @@ describe("installation tokens", () => {
     const response = await handleRequest(installationRequest(), env, executionContext(), runtime);
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({ error: { code: "upstream_unavailable" } });
+  });
+
+  it("rejects client-supplied installation and application identity", async () => {
+    const env = makeEnv();
+    const { runtime } = makeRuntime();
+    const response = await handleRequest(
+      installationRequest("203.0.113.8", {
+        installationId: INSTALLATION_ID,
+        appVersion: "2.0.0",
+      }),
+      env,
+      executionContext(),
+      runtime,
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("accepts tokens signed by the previous secret during rotation", async () => {
+    const previousSecret = "previous-installation-secret-at-least-32-bytes";
+    const env = { ...makeEnv(), PREVIOUS_INSTALLATION_SECRET: previousSecret };
+    const token = await issueInstallationToken(INSTALLATION_ID, previousSecret, NOW);
+    const { runtime } = makeRuntime();
+
+    const response = await handleRequest(contextRequest(token), env, executionContext(), runtime);
+    expect(response.status).toBe(200);
   });
 });
 
@@ -198,6 +224,18 @@ describe("production identity", () => {
     );
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({ error: { code: "upstream_unavailable" } });
+  });
+
+  it("fails health checks when required runtime secrets are invalid", async () => {
+    const env = { ...makeEnv(), INSTALLATION_SECRET: "short" };
+    const { runtime } = makeRuntime();
+    const response = await handleRequest(
+      new Request("https://pointrans.test/health"),
+      env,
+      executionContext(),
+      runtime,
+    );
+    expect(response.status).toBe(503);
   });
 });
 
@@ -252,6 +290,25 @@ describe("context endpoint", () => {
     );
     expect(oversized.status).toBe(400);
     await expect(oversized.json()).resolves.toMatchObject({ error: { code: "invalid_request" } });
+
+    const mismatchedRange = await handleRequest(
+      contextRequest(token, crypto.randomUUID(), { targetStart: 0, targetLength: 7 }),
+      env,
+      executionContext(),
+      runtime,
+    );
+    expect(mismatchedRange.status).toBe(400);
+  });
+
+  it("never trusts an invalid client request ID in logs", async () => {
+    const env = makeEnv();
+    const { runtime, records } = makeRuntime();
+    const token = await install(env, runtime);
+    const response = await handleRequest(contextRequest(token, "forged-log-id"), env, executionContext(), runtime);
+
+    expect(response.status).toBe(400);
+    expect(records.at(-1)?.requestId).not.toBe("forged-log-id");
+    expect(String(records.at(-1)?.requestId)).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("enforces exactly 30 cloud requests per installation per UTC day", async () => {

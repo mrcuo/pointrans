@@ -6,10 +6,14 @@ enum TextTokenizer {
         let range: Range<String.Index>
     }
 
+    struct ContextWindow: Equatable, Sendable {
+        let text: String
+        let targetUTF16Range: NSRange
+    }
+
     static func token(
         atUTF16Offset offset: Int,
         in text: String,
-        direction: TranslationDirection,
         maximumNearestUTF16Distance: Int = 2
     ) -> Token? {
         guard !text.isEmpty else { return nil }
@@ -18,7 +22,7 @@ enum TextTokenizer {
         guard let utf16Index = utf16.index(utf16.startIndex, offsetBy: safeOffset, limitedBy: utf16.endIndex),
               let index = String.Index(utf16Index, within: text) else { return nil }
 
-        let tokens = tokenize(text, direction: direction)
+        let tokens = tokenize(text)
         if let direct = tokens.first(where: { $0.range.contains(index) }) { return direct }
 
         guard let nearest = tokens.min(by: {
@@ -28,6 +32,25 @@ enum TextTokenizer {
             return nil
         }
         return nearest
+    }
+
+    static func token(
+        atUTF16Offset offset: Int,
+        in text: String,
+        direction: TranslationDirection,
+        maximumNearestUTF16Distance: Int = 2
+    ) -> Token? {
+        token(
+            atUTF16Offset: offset,
+            in: text,
+            maximumNearestUTF16Distance: maximumNearestUTF16Distance
+        ).flatMap { DetectedLanguage.detect($0.text).direction == direction ? $0 : nil }
+    }
+
+    static func tokenize(_ text: String) -> [Token] {
+        (englishTokens(in: text) + chineseTokens(in: text)).sorted {
+            $0.range.lowerBound < $1.range.lowerBound
+        }
     }
 
     static func tokenize(_ text: String, direction: TranslationDirection) -> [Token] {
@@ -40,19 +63,75 @@ enum TextTokenizer {
     }
 
     static func context(around range: Range<String.Index>, in text: String, maximumUTF16Length: Int = 600) -> String {
-        let paragraph = text.rangeOfParagraph(containing: range.lowerBound)
-        let value = String(text[paragraph])
-        guard value.utf16.count > maximumUTF16Length else {
-            return value.trimmingCharacters(in: .whitespacesAndNewlines)
+        contextWindow(around: range, in: text, maximumUTF16Length: maximumUTF16Length)?.text ?? ""
+    }
+
+    static func contextWindow(
+        around targetRange: Range<String.Index>,
+        in text: String,
+        maximumUTF16Length: Int = 600
+    ) -> ContextWindow? {
+        guard !targetRange.isEmpty else { return nil }
+        var selectedRange = text.rangeOfParagraph(containing: targetRange.lowerBound)
+        text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: [.bySentences, .localized]) {
+            _, sentenceRange, _, stop in
+            if sentenceRange.overlaps(targetRange) {
+                selectedRange = sentenceRange
+                stop = true
+            }
         }
 
-        let paragraphLocation = NSRange(text.startIndex..<paragraph.lowerBound, in: text).length
-        let tokenLocation = NSRange(text.startIndex..<range.lowerBound, in: text).length - paragraphLocation
-        let centeredStart = tokenLocation - maximumUTF16Length / 2
-        let start = min(max(centeredStart, 0), value.utf16.count - maximumUTF16Length)
-        let units = Array(value.utf16)
-        let window = String(decoding: units[start..<(start + maximumUTF16Length)], as: UTF16.self)
-        return window.trimmingCharacters(in: .whitespacesAndNewlines)
+        let raw = String(text[selectedRange])
+        let rawTargetLocation = NSRange(selectedRange.lowerBound..<targetRange.lowerBound, in: text).length
+        let rawTargetLength = NSRange(targetRange, in: text).length
+        let leadingWhitespace = raw.prefix { $0.isWhitespace }.utf16.count
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let adjustedTarget = NSRange(
+            location: max(0, rawTargetLocation - leadingWhitespace),
+            length: rawTargetLength
+        )
+        return boundedContext(trimmed, targetUTF16Range: adjustedTarget, maximumUTF16Length: maximumUTF16Length)
+    }
+
+    static func boundedContext(
+        _ value: String,
+        targetUTF16Range: NSRange?,
+        maximumUTF16Length: Int = 600
+    ) -> ContextWindow? {
+        guard maximumUTF16Length > 0, !value.isEmpty else { return nil }
+        let nsValue = value as NSString
+        let validTarget: NSRange
+        if let targetUTF16Range,
+           targetUTF16Range.location >= 0,
+           targetUTF16Range.length > 0,
+           NSMaxRange(targetUTF16Range) <= nsValue.length {
+            validTarget = targetUTF16Range
+        } else {
+            validTarget = NSRange(location: 0, length: min(nsValue.length, 1))
+        }
+        guard nsValue.length > maximumUTF16Length else {
+            return ContextWindow(text: value, targetUTF16Range: validTarget)
+        }
+
+        let centeredStart = validTarget.location + validTarget.length / 2 - maximumUTF16Length / 2
+        let start = min(max(centeredStart, 0), nsValue.length - maximumUTF16Length)
+        var composedRange = nsValue.rangeOfComposedCharacterSequences(
+            for: NSRange(location: start, length: maximumUTF16Length)
+        )
+        while composedRange.length > maximumUTF16Length {
+            let last = nsValue.rangeOfComposedCharacterSequence(at: NSMaxRange(composedRange) - 1)
+            composedRange.length = last.location - composedRange.location
+        }
+        guard NSLocationInRange(validTarget.location, composedRange),
+              NSMaxRange(validTarget) <= NSMaxRange(composedRange) else { return nil }
+        return ContextWindow(
+            text: nsValue.substring(with: composedRange),
+            targetUTF16Range: NSRange(
+                location: validTarget.location - composedRange.location,
+                length: validTarget.length
+            )
+        )
     }
 
     static func truncatedUTF16(_ value: String, maximumLength: Int) -> String {

@@ -12,8 +12,7 @@ final class CloudContextClientTests: XCTestCase {
         let client = CloudContextClient(
             baseURL: URL(string: "https://pointrans.test")!,
             identity: identity,
-            transport: transport,
-            appVersion: "2.0.0"
+            transport: transport
         )
 
         let result = try await client.analyze(request: request(), base: base())
@@ -26,6 +25,9 @@ final class CloudContextClientTests: XCTestCase {
 
         let requests = await transport.requests
         XCTAssertEqual(requests.map(\.path), ["/v1/installations", "/v1/context"])
+        XCTAssertEqual(requests[0].body, "{}")
+        XCTAssertFalse(requests[0].body.contains("installationId"))
+        XCTAssertFalse(requests[0].body.contains("appVersion"))
         XCTAssertFalse(requests[1].body.contains("dictionary hint"))
         XCTAssertFalse(requests[1].body.lowercased().contains("screenshot"))
         XCTAssertTrue(requests[1].body.contains("pulling"))
@@ -41,8 +43,7 @@ final class CloudContextClientTests: XCTestCase {
         let client = CloudContextClient(
             baseURL: URL(string: "https://pointrans.test")!,
             identity: identity,
-            transport: transport,
-            appVersion: "2.0.0"
+            transport: transport
         )
 
         let result = try await client.analyze(request: request(), base: base())
@@ -65,8 +66,7 @@ final class CloudContextClientTests: XCTestCase {
         let client = CloudContextClient(
             baseURL: URL(string: "https://pointrans.test")!,
             identity: identity,
-            transport: transport,
-            appVersion: "2.0.0"
+            transport: transport
         )
 
         do {
@@ -84,16 +84,15 @@ final class CloudContextClientTests: XCTestCase {
 
     func testOfflineTimeoutAndCancellationRemainDistinct() async {
         for (code, expected) in [
-            (URLError.notConnectedToInternet, ContextAnalyzerError.unavailable),
-            (URLError.timedOut, ContextAnalyzerError.transient)
+            (URLError.notConnectedToInternet, ContextAnalyzerError.onlineUnavailable),
+            (URLError.timedOut, ContextAnalyzerError.onlineUnavailable)
         ] {
             let identity = MemoryInstallationIdentity(token: "valid-token")
             let transport = QueuedHTTPTransport(steps: [.urlFailure(code)])
             let client = CloudContextClient(
                 baseURL: URL(string: "https://pointrans.test")!,
                 identity: identity,
-                transport: transport,
-                appVersion: "2.0.0"
+                transport: transport
             )
             do {
                 _ = try await client.analyze(request: request(), base: base())
@@ -110,8 +109,7 @@ final class CloudContextClientTests: XCTestCase {
         let client = CloudContextClient(
             baseURL: URL(string: "https://pointrans.test")!,
             identity: identity,
-            transport: transport,
-            appVersion: "2.0.0"
+            transport: transport
         )
         do {
             _ = try await client.analyze(request: request(), base: base())
@@ -123,14 +121,38 @@ final class CloudContextClientTests: XCTestCase {
         }
     }
 
+    func testLegacyInstallationContractIsReportedAsServiceIncompatible() async {
+        let identity = MemoryInstallationIdentity(token: nil)
+        let transport = QueuedHTTPTransport(steps: [
+            .response(status: 400, body: errorBody("invalid_request"))
+        ])
+        let client = CloudContextClient(
+            baseURL: URL(string: "https://pointrans.test")!,
+            identity: identity,
+            transport: transport
+        )
+
+        do {
+            _ = try await client.analyze(request: request(), base: base())
+            XCTFail("Expected an incompatible service contract")
+        } catch let error as ContextAnalyzerError {
+            XCTAssertEqual(error, .onlineServiceIncompatible)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let requests = await transport.requests
+        XCTAssertEqual(requests.map(\.path), ["/v1/installations"])
+        XCTAssertEqual(requests.first?.body, "{}")
+    }
+
     func testInvalidInputNeverTouchesIdentityOrNetwork() async {
         let identity = MemoryInstallationIdentity(token: "valid-token")
         let transport = QueuedHTTPTransport(steps: [])
         let client = CloudContextClient(
             baseURL: URL(string: "https://pointrans.test")!,
             identity: identity,
-            transport: transport,
-            appVersion: "2.0.0"
+            transport: transport
         )
 
         var invalid = request()
@@ -162,6 +184,7 @@ final class CloudContextClientTests: XCTestCase {
             displayID: 1,
             word: "pulling",
             context: "She kept pulling the thread.",
+            targetUTF16Range: NSRange(location: 9, length: 7),
             direction: .englishToChinese,
             createdAt: Date(timeIntervalSince1970: 0)
         )

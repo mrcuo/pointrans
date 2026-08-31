@@ -5,13 +5,39 @@ import XCTest
 
 @MainActor
 final class VisualSnapshotTests: XCTestCase {
+    func testGuidedSampleRendersTheFullSentenceAndAVisibleTarget() throws {
+        let sample = GuidedSampleTextView.SampleTextView { _ in }
+        sample.frame = CGRect(x: 0, y: 0, width: 520, height: 68)
+        sample.layoutSubtreeIfNeeded()
+
+        let descendants = allDescendants(of: sample)
+        let renderedText = descendants
+            .compactMap { ($0 as? NSTextField)?.stringValue }
+            .joined()
+        XCTAssertEqual(renderedText, GuidedSampleTextView.sentence)
+
+        let target = try XCTUnwrap(descendants.first {
+            $0.accessibilityIdentifier() == "guided-target-word"
+        })
+        XCTAssertGreaterThan(target.frame.width, 80)
+        XCTAssertGreaterThan(target.frame.height, 20)
+
+        let representation = try XCTUnwrap(sample.bitmapImageRepForCachingDisplay(in: sample.bounds))
+        sample.cacheDisplay(in: sample.bounds, to: representation)
+        let data = try XCTUnwrap(representation.representation(using: .png, properties: [:]))
+        XCTAssertGreaterThan(data.count, 2_000, "The guided sentence must render visible pixels")
+    }
+
     func testControlCenterPreviewAndPinnedRenderOffscreen() async throws {
+        let resourceBundle = Bundle(for: VisualSnapshotTests.self)
+        XCTAssertNotNil(resourceBundle.image(forResource: NSImage.Name("PointransLogo")))
+        XCTAssertNotNil(resourceBundle.image(forResource: NSImage.Name("PointransSymbol")))
+
         let suiteName = "PointransVisualTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         defaults.set(true, forKey: "didCompleteOnboarding")
         defaults.set(0.15, forKey: "hoverDelay")
-        defaults.set(TranslationDirection.englishToChinese.rawValue, forKey: "translationMode")
 
         let preferences = AppPreferences(defaults: defaults)
         let controller = TranslationController(
@@ -28,9 +54,15 @@ final class VisualSnapshotTests: XCTestCase {
             controller.closePanel()
         }
 
-        let languagePacks = LanguagePackManager()
+        let permissions = PermissionCoordinator(provider: SnapshotPermissions())
+        permissions.refresh()
+        let languagePacks = LanguagePackManager(forceInstalledForTesting: true)
         try render(
-            ControlCenterView(controller: controller, languagePacks: languagePacks),
+            ControlCenterView(
+                controller: controller,
+                permissions: permissions,
+                languagePacks: languagePacks
+            ),
             size: CGSize(width: 360, height: 520),
             colorScheme: .light,
             name: "control-center-light"
@@ -63,6 +95,10 @@ final class VisualSnapshotTests: XCTestCase {
             colorScheme: .dark,
             name: "translation-pinned-dark"
         )
+    }
+
+    private func allDescendants(of view: NSView) -> [NSView] {
+        view.subviews.flatMap { [$0] + allDescendants(of: $0) }
     }
 
     private func render<Content: View>(
@@ -101,8 +137,7 @@ final class VisualSnapshotTests: XCTestCase {
 private struct SnapshotExtractor: TextExtracting {
     func extract(
         at point: CGPoint,
-        displayID: CGDirectDisplayID,
-        direction: TranslationDirection
+        displayID: CGDirectDisplayID
     ) async throws -> ExtractionResult {
         ExtractionResult(
             word: "pulling",
@@ -115,11 +150,7 @@ private struct SnapshotExtractor: TextExtracting {
 }
 
 private struct SnapshotTranslator: BaseTranslating {
-    func translate(
-        word: String,
-        context: String,
-        direction: TranslationDirection
-    ) async throws -> BaseTranslation {
+    func translate(request: TranslationRequest) async throws -> BaseTranslation {
         BaseTranslation(
             meanings: ["拉", "牵引", "抽取"],
             deviceTranslation: nil,
@@ -131,7 +162,11 @@ private struct SnapshotTranslator: BaseTranslating {
 }
 
 private struct SnapshotAnalyzer: ContextAnalyzing {
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
         InsightResult(
             insight: ContextInsight(
                 contextualMeaning: "持续拉扯",
@@ -149,6 +184,6 @@ private struct SnapshotAnalyzer: ContextAnalyzing {
 private struct SnapshotPermissions: PermissionProviding {
     var accessibilityGranted: Bool { true }
     var screenCaptureGranted: Bool { true }
-    func requestAccessibility() {}
+    func requestAccessibility() async -> Bool { true }
     func requestScreenCapture() async -> Bool { true }
 }

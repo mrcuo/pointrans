@@ -5,7 +5,12 @@ import XCTest
 final class TranslationControllerTests: XCTestCase {
     func testNewHoverCancelsLateExtractionAndPublishesOnlyNewestSession() async throws {
         let points = testPoints()
-        let harness = makeHarness(extractor: DelayedPointExtractor(splitX: (points.first.x + points.second.x) / 2, delayFirst: true))
+        let harness = makeHarness(
+            extractor: PointExtractor(
+                splitX: (points.first.x + points.second.x) / 2,
+                delaysFirstResult: true
+            )
+        )
         defer { harness.cleanup() }
 
         harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
@@ -23,44 +28,26 @@ final class TranslationControllerTests: XCTestCase {
 
     func testPinnedSessionRejectsNewHoverUntilClosed() async throws {
         let points = testPoints()
-        let harness = makeHarness(extractor: DelayedPointExtractor(splitX: .infinity, delayFirst: false))
+        let harness = makeHarness(extractor: PointExtractor(splitX: .infinity))
         defer { harness.cleanup() }
 
         harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
-        try await Task.sleep(for: .milliseconds(220))
+        try await Task.sleep(for: .milliseconds(240))
         let originalID = try XCTUnwrap(harness.controller.currentRequest?.id)
         harness.controller.pinPanel()
 
         harness.controller.receive(.modifierPressed(point: points.second, timestamp: 2))
-        try await Task.sleep(for: .milliseconds(220))
+        try await Task.sleep(for: .milliseconds(240))
 
         XCTAssertEqual(harness.controller.currentRequest?.id, originalID)
         XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: originalID))
     }
 
-    func testLateDeviceEnrichmentCannotOverwriteNewerBaseResult() async throws {
+    func testModifierReleaseWhileTranslationIsPendingCannotOpenPreview() async throws {
         let points = testPoints()
         let harness = makeHarness(
-            extractor: DelayedPointExtractor(splitX: (points.first.x + points.second.x) / 2, delayFirst: false),
-            translator: DelayedEnrichmentTranslator()
-        )
-        defer { harness.cleanup() }
-
-        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
-        try await Task.sleep(for: .milliseconds(230))
-        harness.controller.receive(.pointerMoved(point: points.second, timestamp: 1.3))
-        try await Task.sleep(for: .milliseconds(700))
-
-        XCTAssertEqual(harness.controller.currentRequest?.word, "second")
-        XCTAssertEqual(harness.controller.baseTranslation?.deviceTranslation, "device-second")
-        XCTAssertFalse(harness.controller.baseTranslation?.meanings.contains("meaning-first") == true)
-    }
-
-    func testModifierReleaseWhileBaseTranslationIsPendingCannotOpenPreview() async throws {
-        let points = testPoints()
-        let harness = makeHarness(
-            extractor: DelayedPointExtractor(splitX: .infinity, delayFirst: false),
-            translator: CancellationIgnoringBaseTranslator()
+            extractor: PointExtractor(splitX: .infinity),
+            translator: CancellationIgnoringTranslator()
         )
         defer { harness.cleanup() }
 
@@ -74,11 +61,11 @@ final class TranslationControllerTests: XCTestCase {
         XCTAssertNil(harness.controller.baseTranslation)
     }
 
-    func testTranslationFailureIsNotReportedAsExtractionFailure() async throws {
+    func testTranslationFailureShowsBriefUnderstandableResultInsteadOfEmptyWindow() async throws {
         let points = testPoints()
         let harness = makeHarness(
-            extractor: DelayedPointExtractor(splitX: .infinity, delayFirst: false),
-            translator: FailingBaseTranslator()
+            extractor: PointExtractor(splitX: .infinity),
+            translator: FailingTranslator()
         )
         defer { harness.cleanup() }
 
@@ -86,9 +73,11 @@ final class TranslationControllerTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(260))
 
         guard case .failed(_, .translationUnavailable) = harness.controller.state else {
-            return XCTFail("A base-translation failure must not trigger another extraction")
+            return XCTFail("Translation errors must remain distinct from extraction failures")
         }
-        XCTAssertEqual(harness.controller.panelMode, .hidden)
+        guard case .preview = harness.controller.panelMode else {
+            return XCTFail("A short error card should explain that all translation routes failed")
+        }
     }
 
     func testReleasedPreviewMovementCannotArmAnotherTranslation() async throws {
@@ -102,8 +91,9 @@ final class TranslationControllerTests: XCTestCase {
         let countAfterPreview = await extractor.count
         XCTAssertEqual(countAfterPreview, 1)
 
-        harness.controller.receive(.modifierReleased(point: points.first, timestamp: ProcessInfo.processInfo.systemUptime))
-        harness.controller.receive(.pointerMoved(point: points.second, timestamp: ProcessInfo.processInfo.systemUptime + 0.1))
+        let now = ProcessInfo.processInfo.systemUptime
+        harness.controller.receive(.modifierReleased(point: points.first, timestamp: now))
+        harness.controller.receive(.pointerMoved(point: points.second, timestamp: now + 0.1))
         try await Task.sleep(for: .milliseconds(300))
 
         let countAfterReleasedMovement = await extractor.count
@@ -111,80 +101,194 @@ final class TranslationControllerTests: XCTestCase {
         XCTAssertEqual(harness.controller.panelMode, .hidden)
     }
 
-    func testReleasedPreviewExpiresWhenPointerNeverEntersPanel() async throws {
-        let points = testPoints()
-        let harness = makeHarness(extractor: DelayedPointExtractor(splitX: .infinity, delayFirst: false))
+    func testBothRequiredPermissionsGateTheListener() {
+        let permissions = MutablePermissions(accessibility: false, screenCapture: false)
+        let monitor = TestEventMonitor()
+        let harness = makeHarness(
+            extractor: PointExtractor(splitX: .infinity),
+            permissions: permissions,
+            monitor: monitor
+        )
         defer { harness.cleanup() }
 
-        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
-        try await Task.sleep(for: .milliseconds(240))
-        harness.controller.updatePanelFrame(
-            appKitFrame: ScreenCoordinates.quartzRectToAppKit(
-                CGRect(x: points.first.x + 10, y: points.first.y + 10, width: 360, height: 210)
-            )
-        )
-        harness.controller.receive(.modifierReleased(point: points.first, timestamp: ProcessInfo.processInfo.systemUptime))
-        try await Task.sleep(for: .milliseconds(950))
+        harness.controller.start()
+        XCTAssertEqual(harness.controller.triggerRuntimeState, .waitingForAccessibility)
+        XCTAssertEqual(monitor.startCount, 0)
 
-        XCTAssertEqual(harness.controller.panelMode, .hidden)
+        permissions.update(accessibility: true)
+        harness.controller.applicationDidBecomeActive()
+        XCTAssertEqual(harness.controller.triggerRuntimeState, .waitingForScreenCapture)
+        XCTAssertEqual(monitor.startCount, 0)
+
+        permissions.update(screenCapture: true)
+        harness.controller.applicationDidBecomeActive()
+        XCTAssertEqual(harness.controller.triggerRuntimeState, .active)
+        XCTAssertEqual(monitor.startCount, 1)
     }
 
-    func testDisablingAICancelsInsightAndRestoresBaseResult() async throws {
-        let points = testPoints()
+    func testMonitorCreationFailureRecoversWithoutRelaunch() async throws {
+        let monitor = TestEventMonitor(failuresBeforeSuccess: 1)
         let harness = makeHarness(
-            extractor: DelayedPointExtractor(splitX: .infinity, delayFirst: false),
-            analyzer: SlowAnalyzer()
+            extractor: PointExtractor(splitX: .infinity),
+            monitor: monitor
         )
         defer { harness.cleanup() }
+
+        harness.controller.start()
+        XCTAssertEqual(harness.controller.triggerRuntimeState, .recovering)
+        try await Task.sleep(for: .milliseconds(650))
+
+        XCTAssertEqual(monitor.startCount, 2)
+        XCTAssertEqual(harness.controller.triggerRuntimeState, .active)
+    }
+
+    func testContextRequestUsesPersistedCloudConsentAndPinsPreview() async throws {
+        let points = testPoints()
+        let analyzer = ConsentRecordingAnalyzer()
+        let harness = makeHarness(extractor: PointExtractor(splitX: .infinity), analyzer: analyzer)
+        defer { harness.cleanup() }
+        harness.controller.preferences.cloudContextConsent = .denied
 
         harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
         try await Task.sleep(for: .milliseconds(240))
         let requestID = try XCTUnwrap(harness.controller.currentRequest?.id)
-
         harness.controller.requestContextInsight()
-        XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: requestID))
-        guard case .enriching = harness.controller.state else {
-            return XCTFail("AI request should enter the enriching state")
-        }
+        try await Task.sleep(for: .milliseconds(80))
 
-        harness.controller.setAIEnabled(false)
-        try await Task.sleep(for: .milliseconds(350))
-
-        XCTAssertFalse(harness.controller.preferences.aiEnabled)
-        XCTAssertNil(harness.controller.insight)
         XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: requestID))
-        guard case .ready(let readyID, let base, nil) = harness.controller.state else {
-            return XCTFail("Turning AI off must preserve the base result")
-        }
-        XCTAssertEqual(readyID, requestID)
-        XCTAssertEqual(base.meanings, ["meaning-first"])
+        let deniedConsent = await analyzer.receivedConsent
+        XCTAssertEqual(deniedConsent, false)
+
+        harness.controller.closePanel()
+        harness.controller.preferences.cloudContextConsent = .allowed
+        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 2))
+        try await Task.sleep(for: .milliseconds(240))
+        harness.controller.requestContextInsight()
+        try await Task.sleep(for: .milliseconds(80))
+        let allowedConsent = await analyzer.receivedConsent
+        XCTAssertEqual(allowedConsent, true)
+
+        harness.controller.requestContextInsight(allowsOnlineFallback: false)
+        try await Task.sleep(for: .milliseconds(80))
+        let forcedDeviceOnly = await analyzer.receivedConsent
+        XCTAssertEqual(forcedDeviceOnly, false)
+        XCTAssertEqual(harness.controller.preferences.cloudContextConsent, .allowed)
     }
 
-    func testOldPanelHideCompletionCannotClearANewerPreview() async throws {
+    func testOnlineContextFailuresRemainDistinctFromDeviceAvailability() async throws {
         let points = testPoints()
-        let harness = makeHarness(
-            extractor: DelayedPointExtractor(
-                splitX: (points.first.x + points.second.x) / 2,
-                delayFirst: false
+        for (error, expected) in [
+            (ContextAnalyzerError.onlineUnavailable, TranslationFailure.onlineUnavailable),
+            (ContextAnalyzerError.onlineServiceIncompatible, TranslationFailure.onlineServiceIncompatible)
+        ] {
+            let harness = makeHarness(
+                extractor: PointExtractor(splitX: .infinity),
+                analyzer: SpecificFailingAnalyzer(error: error)
             )
+            defer { harness.cleanup() }
+
+            harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
+            try await Task.sleep(for: .milliseconds(240))
+            harness.controller.requestContextInsight()
+            try await Task.sleep(for: .milliseconds(80))
+
+            guard case .failed(_, let failure) = harness.controller.insightPhase else {
+                return XCTFail("Expected a distinct online failure")
+            }
+            XCTAssertEqual(failure, expected)
+        }
+    }
+
+    func testClosingPinnedResultCancelsOutstandingContextTask() async throws {
+        let points = testPoints()
+        let analyzer = SlowCancellableAnalyzer()
+        let harness = makeHarness(extractor: PointExtractor(splitX: .infinity), analyzer: analyzer)
+        defer { harness.cleanup() }
+
+        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
+        try await Task.sleep(for: .milliseconds(240))
+        harness.controller.requestContextInsight()
+        harness.controller.closePanel()
+        try await Task.sleep(for: .milliseconds(80))
+
+        let wasCancelled = await analyzer.wasCancelled
+        XCTAssertTrue(wasCancelled)
+        XCTAssertNil(harness.controller.insight)
+        XCTAssertEqual(harness.controller.panelMode, .hidden)
+    }
+
+    func testRevokingCloudConsentCancelsARequestThatCouldStillFallback() async throws {
+        let points = testPoints()
+        let analyzer = SlowCancellableAnalyzer()
+        let harness = makeHarness(extractor: PointExtractor(splitX: .infinity), analyzer: analyzer)
+        defer { harness.cleanup() }
+        harness.controller.setCloudContextConsent(.allowed)
+
+        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
+        try await Task.sleep(for: .milliseconds(240))
+        harness.controller.requestContextInsight()
+        try await Task.sleep(for: .milliseconds(20))
+        harness.controller.setCloudContextConsent(.denied)
+        try await Task.sleep(for: .milliseconds(80))
+
+        let wasCancelled = await analyzer.wasCancelled
+        XCTAssertTrue(wasCancelled)
+        XCTAssertEqual(harness.controller.preferences.cloudContextConsent, .denied)
+        XCTAssertNotNil(harness.controller.baseTranslation)
+        XCTAssertNil(harness.controller.insight)
+    }
+
+    func testDetectedScriptDeterminesDirectionWithoutASetting() async throws {
+        let points = testPoints()
+        let translator = RequestRecordingTranslator()
+        let harness = makeHarness(
+            extractor: LiteralExtractor(word: "翻译", context: "这个词需要翻译"),
+            translator: translator
         )
         defer { harness.cleanup() }
 
         harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
         try await Task.sleep(for: .milliseconds(240))
-        let oldID = try XCTUnwrap(harness.controller.currentRequest?.id)
+
+        let direction = await translator.lastDirection
+        XCTAssertEqual(direction, .chineseToEnglish)
+    }
+
+    func testGuidedExperienceUsesItsVisibleTargetAndKeepsTheRealResultInPage() async throws {
+        let points = testPoints()
+        let extractor = CountingExtractor()
+        let harness = makeHarness(extractor: extractor)
+        defer { harness.cleanup() }
+        let targetQuartz = CGRect(
+            x: points.first.x - 40,
+            y: points.first.y - 15,
+            width: 80,
+            height: 30
+        )
+        let sentence = "She finally made a breakthrough after months of work."
+
+        harness.controller.setTutorialMode(true)
+        harness.controller.updateTutorialTarget(
+            appKitFrame: ScreenCoordinates.quartzRectToAppKit(targetQuartz),
+            word: "breakthrough",
+            context: sentence,
+            targetUTF16Range: (sentence as NSString).range(of: "breakthrough")
+        )
+        harness.controller.receive(.modifierPressed(point: points.first, timestamp: 1))
+        try await Task.sleep(for: .milliseconds(260))
+
+        let extractionCount = await extractor.count
+        XCTAssertEqual(extractionCount, 0, "The visible built-in sample should not depend on AX or OCR")
+        XCTAssertEqual(harness.controller.currentRequest?.word, "breakthrough")
+        XCTAssertEqual(harness.controller.extraction?.source, .guidedSample)
+        XCTAssertNotNil(harness.controller.baseTranslation)
+        guard case .pinned(let sessionID) = harness.controller.panelMode else {
+            return XCTFail("The guided result must remain owned by the onboarding page after release")
+        }
+
         harness.controller.receive(.modifierReleased(point: points.first, timestamp: 1.3))
-
-        harness.controller.receive(.modifierPressed(point: points.second, timestamp: 2))
-        try await Task.sleep(for: .milliseconds(240))
-        let newID = try XCTUnwrap(harness.controller.currentRequest?.id)
-        XCTAssertNotEqual(oldID, newID)
-
-        harness.controller.panelHideAnimationCompleted(sessionID: oldID)
-
-        XCTAssertEqual(harness.controller.currentRequest?.id, newID)
-        XCTAssertEqual(harness.controller.panelMode, .preview(sessionID: newID))
-        XCTAssertEqual(harness.controller.baseTranslation?.meanings, ["meaning-second"])
+        XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: sessionID))
+        XCTAssertNotNil(harness.controller.baseTranslation)
     }
 
     private func testPoints() -> (first: CGPoint, second: CGPoint) {
@@ -196,12 +300,13 @@ final class TranslationControllerTests: XCTestCase {
     private func makeHarness(
         extractor: any TextExtracting,
         translator: any BaseTranslating = ImmediateTranslator(),
-        analyzer: any ContextAnalyzing = NoopAnalyzer()
+        analyzer: any ContextAnalyzing = UnavailableAnalyzer(),
+        permissions: any PermissionProviding = GrantedPermissions(),
+        monitor: (any EventMonitoring)? = nil
     ) -> ControllerHarness {
         let suiteName = "PointransControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.set(0.15, forKey: "hoverDelay")
-        defaults.set(TranslationDirection.englishToChinese.rawValue, forKey: "translationMode")
         let preferences = AppPreferences(defaults: defaults)
         let controller = TranslationController(
             preferences: preferences,
@@ -209,8 +314,9 @@ final class TranslationControllerTests: XCTestCase {
                 extractor: extractor,
                 translator: translator,
                 analyzer: analyzer,
-                permissions: GrantedPermissions()
-            )
+                permissions: permissions
+            ),
+            monitor: monitor
         )
         return ControllerHarness(controller: controller, defaults: defaults, suiteName: suiteName)
     }
@@ -229,14 +335,13 @@ private struct ControllerHarness {
     }
 }
 
-private struct DelayedPointExtractor: TextExtracting {
+private struct PointExtractor: TextExtracting {
     let splitX: CGFloat
-    let delayFirst: Bool
+    var delaysFirstResult = false
 
-    func extract(at point: CGPoint, displayID: CGDirectDisplayID, direction: TranslationDirection) async throws -> ExtractionResult {
+    func extract(at point: CGPoint, displayID: CGDirectDisplayID) async throws -> ExtractionResult {
         let word = point.x < splitX ? "first" : "second"
-        if word == "first" && delayFirst {
-            // Simulate a provider that returns after cancellation; the controller must still reject it.
+        if word == "first" && delaysFirstResult {
             try? await Task.sleep(for: .milliseconds(380))
         }
         return ExtractionResult(
@@ -249,56 +354,25 @@ private struct DelayedPointExtractor: TextExtracting {
     }
 }
 
-private struct ImmediateTranslator: BaseTranslating {
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        BaseTranslation(meanings: ["meaning-\(word)"], deviceTranslation: nil, phonetic: nil, pinyin: nil, source: .dictionary)
-    }
-}
+private struct LiteralExtractor: TextExtracting {
+    let word: String
+    let context: String
 
-private struct DelayedEnrichmentTranslator: BaseTranslating {
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        BaseTranslation(meanings: ["meaning-\(word)"], deviceTranslation: nil, phonetic: nil, pinyin: nil, source: .dictionary)
-    }
-
-    func enrich(_ base: BaseTranslation, word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        if word == "first" {
-            try? await Task.sleep(for: .milliseconds(420))
-        }
-        return BaseTranslation(
-            meanings: base.meanings,
-            deviceTranslation: "device-\(word)",
-            phonetic: nil,
-            pinyin: nil,
-            source: .dictionaryAndApple
+    func extract(at point: CGPoint, displayID: CGDirectDisplayID) async throws -> ExtractionResult {
+        ExtractionResult(
+            word: word,
+            context: context,
+            bounds: CGRect(x: point.x, y: point.y, width: 40, height: 18),
+            confidence: 1,
+            source: .accessibility
         )
-    }
-}
-
-private struct CancellationIgnoringBaseTranslator: BaseTranslating {
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        try? await Task.sleep(for: .milliseconds(320))
-        return BaseTranslation(
-            meanings: ["late-meaning"],
-            deviceTranslation: nil,
-            phonetic: nil,
-            pinyin: nil,
-            source: .dictionary
-        )
-    }
-}
-
-private struct FailingBaseTranslator: BaseTranslating {
-    enum Failure: Error { case unavailable }
-
-    func translate(word: String, context: String, direction: TranslationDirection) async throws -> BaseTranslation {
-        throw Failure.unavailable
     }
 }
 
 private actor CountingExtractor: TextExtracting {
     private(set) var count = 0
 
-    func extract(at point: CGPoint, displayID: CGDirectDisplayID, direction: TranslationDirection) async throws -> ExtractionResult {
+    func extract(at point: CGPoint, displayID: CGDirectDisplayID) async throws -> ExtractionResult {
         count += 1
         return ExtractionResult(
             word: "counted",
@@ -310,32 +384,168 @@ private actor CountingExtractor: TextExtracting {
     }
 }
 
-private struct NoopAnalyzer: ContextAnalyzing {
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
+private struct ImmediateTranslator: BaseTranslating {
+    func translate(request: TranslationRequest) async throws -> BaseTranslation {
+        BaseTranslation(
+            meanings: ["meaning-\(request.word)"],
+            deviceTranslation: nil,
+            phonetic: nil,
+            pinyin: nil,
+            source: .dictionary
+        )
+    }
+}
+
+private struct CancellationIgnoringTranslator: BaseTranslating {
+    func translate(request: TranslationRequest) async throws -> BaseTranslation {
+        try? await Task.sleep(for: .milliseconds(320))
+        return BaseTranslation(
+            meanings: ["late-meaning"],
+            deviceTranslation: nil,
+            phonetic: nil,
+            pinyin: nil,
+            source: .dictionary
+        )
+    }
+}
+
+private struct FailingTranslator: BaseTranslating {
+    enum Failure: Error { case unavailable }
+    func translate(request: TranslationRequest) async throws -> BaseTranslation { throw Failure.unavailable }
+}
+
+private actor RequestRecordingTranslator: BaseTranslating {
+    private(set) var lastDirection: TranslationDirection?
+
+    func translate(request: TranslationRequest) async throws -> BaseTranslation {
+        lastDirection = request.direction
+        return BaseTranslation(
+            meanings: ["translation"],
+            deviceTranslation: nil,
+            phonetic: nil,
+            pinyin: nil,
+            source: .dictionary
+        )
+    }
+}
+
+private struct UnavailableAnalyzer: ContextAnalyzing {
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
         throw ContextAnalyzerError.unavailable
     }
 }
 
-private struct SlowAnalyzer: ContextAnalyzing {
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
-        try? await Task.sleep(for: .milliseconds(300))
+private struct SpecificFailingAnalyzer: ContextAnalyzing {
+    let error: ContextAnalyzerError
+
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
+        throw error
+    }
+}
+
+private actor ConsentRecordingAnalyzer: ContextAnalyzing {
+    private(set) var receivedConsent: Bool?
+
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
+        receivedConsent = allowsCloudFallback
         return InsightResult(
             insight: ContextInsight(
-                contextualMeaning: "late insight",
+                contextualMeaning: "context",
                 partOfSpeech: nil,
-                explanation: "must not be published",
+                explanation: "explanation",
                 contextTranslation: nil
             ),
-            route: .cloud,
-            remainingCloudQuota: 29,
+            route: .onDevice,
+            remainingCloudQuota: nil,
             quotaResetAt: nil
         )
+    }
+}
+
+private actor SlowCancellableAnalyzer: ContextAnalyzing {
+    private(set) var wasCancelled = false
+
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
+        do {
+            try await Task.sleep(for: .seconds(2))
+            throw ContextAnalyzerError.transient
+        } catch is CancellationError {
+            wasCancelled = true
+            throw CancellationError()
+        }
     }
 }
 
 private struct GrantedPermissions: PermissionProviding {
     var accessibilityGranted: Bool { true }
     var screenCaptureGranted: Bool { true }
-    func requestAccessibility() {}
+    func requestAccessibility() async -> Bool { true }
     func requestScreenCapture() async -> Bool { true }
+}
+
+private final class MutablePermissions: PermissionProviding, @unchecked Sendable {
+    private let lock = NSLock()
+    private var accessibility: Bool
+    private var screenCapture: Bool
+
+    init(accessibility: Bool, screenCapture: Bool) {
+        self.accessibility = accessibility
+        self.screenCapture = screenCapture
+    }
+
+    var accessibilityGranted: Bool { lock.withLock { accessibility } }
+    var screenCaptureGranted: Bool { lock.withLock { screenCapture } }
+
+    func update(accessibility: Bool? = nil, screenCapture: Bool? = nil) {
+        lock.withLock {
+            if let accessibility { self.accessibility = accessibility }
+            if let screenCapture { self.screenCapture = screenCapture }
+        }
+    }
+
+    func requestAccessibility() async -> Bool { accessibilityGranted }
+    func requestScreenCapture() async -> Bool { screenCaptureGranted }
+}
+
+@MainActor
+private final class TestEventMonitor: EventMonitoring {
+    enum Failure: Error { case unavailable }
+
+    var onEvent: ((TriggerEvent) -> Void)?
+    var onAvailabilityChanged: ((Bool) -> Void)?
+    private(set) var startCount = 0
+    private var failuresBeforeSuccess: Int
+
+    init(failuresBeforeSuccess: Int = 0) {
+        self.failuresBeforeSuccess = failuresBeforeSuccess
+    }
+
+    func start() throws {
+        startCount += 1
+        if failuresBeforeSuccess > 0 {
+            failuresBeforeSuccess -= 1
+            onAvailabilityChanged?(false)
+            throw Failure.unavailable
+        }
+        onAvailabilityChanged?(true)
+    }
+
+    func stop() {}
+    func setPreviewPointerTracking(_ enabled: Bool) {}
 }

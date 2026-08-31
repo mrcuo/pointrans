@@ -1,4 +1,5 @@
 import CoreGraphics
+import Carbon.HIToolbox
 import XCTest
 
 final class HoverIntentMachineTests: XCTestCase {
@@ -106,6 +107,36 @@ final class HoverIntentMachineTests: XCTestCase {
             type: .mouseMoved,
             modifierIsDown: false,
             tracksPreviewPointer: true
+        ))
+    }
+
+    func testOnlyLeftOptionIsAcceptedAsTheFixedTrigger() {
+        XCTAssertTrue(FixedTriggerPolicy.acceptsModifierTransition(
+            keyCode: CGKeyCode(kVK_Option)
+        ))
+        XCTAssertFalse(FixedTriggerPolicy.acceptsModifierTransition(
+            keyCode: CGKeyCode(kVK_RightOption)
+        ))
+        XCTAssertFalse(FixedTriggerPolicy.acceptsModifierTransition(
+            keyCode: CGKeyCode(kVK_Command)
+        ))
+        XCTAssertFalse(FixedTriggerPolicy.acceptsModifierTransition(
+            keyCode: CGKeyCode(kVK_Shift)
+        ))
+    }
+
+    func testOnboardingConfirmsOnlyTheLeftOptionPressTransition() {
+        XCTAssertTrue(FixedTriggerPolicy.acceptsOnboardingConfirmation(
+            keyCode: CGKeyCode(kVK_Option),
+            isPressed: true
+        ))
+        XCTAssertFalse(FixedTriggerPolicy.acceptsOnboardingConfirmation(
+            keyCode: CGKeyCode(kVK_Option),
+            isPressed: false
+        ))
+        XCTAssertFalse(FixedTriggerPolicy.acceptsOnboardingConfirmation(
+            keyCode: CGKeyCode(kVK_RightOption),
+            isPressed: true
         ))
     }
 }

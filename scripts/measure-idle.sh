@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-EXECUTABLE="$PROJECT_ROOT/dist/Pointrans.app/Contents/MacOS/Pointrans"
+EXECUTABLE="$PROJECT_ROOT/build/Artifacts.noindex/Pointrans.app/Contents/MacOS/Pointrans"
 SAMPLE_FILE="$(mktemp -t pointrans-cpu)"
 LOG_FILE="$(mktemp -t pointrans-log)"
 

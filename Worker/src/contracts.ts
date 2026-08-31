@@ -5,15 +5,14 @@ export interface ContextInsight {
   contextTranslation?: string | null;
 }
 
-export interface InstallationRequest {
-  installationId: string;
-  appVersion: string;
-}
+export type InstallationRequest = Record<string, never>;
 
 export interface ContextRequest {
   requestId: string;
   word: string;
   context: string;
+  targetStart: number;
+  targetLength: number;
   sourceLanguage: "en" | "zh-Hans";
   targetLanguage: "en" | "zh-Hans";
 }
@@ -28,6 +27,7 @@ export type ErrorCode =
 export interface Env {
   COUNTERS: DurableObjectNamespace;
   INSTALLATION_SECRET: string;
+  PREVIOUS_INSTALLATION_SECRET?: string;
   DEEPSEEK_API_KEY: string;
   SOURCE_REVISION: string;
   PRODUCT_VERSION: string;

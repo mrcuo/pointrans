@@ -38,11 +38,15 @@ export async function handleRequest(
   const url = new URL(request.url);
   let requestId: string = crypto.randomUUID();
   let status = 500;
-  let route = url.pathname;
+  const route = knownRoute(url.pathname);
   let remaining: number | undefined;
 
   try {
     if (request.method === "GET" && url.pathname === "/health") {
+      if (!validSecrets(env) || !validProductionIdentity(env)) {
+        status = 503;
+        return errorResponse("upstream_unavailable", 503);
+      }
       status = 200;
       return json({ status: "ok" }, 200);
     }
@@ -69,7 +73,7 @@ export async function handleRequest(
     }
     if (url.pathname === "/v1/context") {
       const parsed = await parseContextRequest(request);
-      if (parsed) requestId = parsed.requestId;
+      if (parsed && validContextRequest(parsed)) requestId = parsed.requestId;
       const response = await createContext(request, parsed, env, runtime);
       status = response.status;
       const quotaHeader = response.headers.get("x-quota-remaining");
@@ -98,16 +102,16 @@ export async function handleRequest(
 async function createInstallation(request: Request, env: Env, runtime: Runtime): Promise<Response> {
   if (!validSecrets(env)) return errorResponse("upstream_unavailable", 503);
   const body = await readJSON<InstallationRequest>(request);
-  if (!body || !isUUID(body.installationId) || !validAppVersion(body.appVersion)) {
+  if (!body || Object.keys(body).length !== 0) {
     return errorResponse("invalid_request", 400);
   }
 
   const ip = clientIP(request);
   const window = hourKey(runtime.now());
-  const allowed = await consume(env, `install:${await opaqueIdentifier(ip, env.INSTALLATION_SECRET)}:${window}`, 10);
+  const allowed = await consume(env, `install:${await opaqueIdentifier(ip, env.INSTALLATION_SECRET)}:${window}`, 120);
   if (!allowed.allowed) return errorResponse("quota_exhausted", 429);
 
-  const token = await issueInstallationToken(body.installationId.toLowerCase(), env.INSTALLATION_SECRET, runtime.now());
+  const token = await issueInstallationToken(crypto.randomUUID(), env.INSTALLATION_SECRET, runtime.now());
   return json({ token }, 201);
 }
 
@@ -120,7 +124,7 @@ async function createContext(
   if (!validSecrets(env)) return errorResponse("upstream_unavailable", 503);
   const bearer = request.headers.get("authorization")?.match(/^Bearer (\S+)$/)?.[1];
   if (!bearer) return errorResponse("unauthorized", 401);
-  const installationId = await verifyInstallationToken(bearer, env.INSTALLATION_SECRET, runtime.now());
+  const installationId = await verifyWithActiveSecrets(bearer, env, runtime.now());
   if (!installationId) return errorResponse("unauthorized", 401);
   if (!parsed || !validContextRequest(parsed)) return errorResponse("invalid_request", 400);
 
@@ -157,28 +161,54 @@ async function parseContextRequest(request: Request): Promise<ContextRequest | n
 }
 
 function validContextRequest(value: ContextRequest): boolean {
-  return (
+  if (!(
     isUUID(value.requestId) &&
     validText(value.word, 1, 100) &&
     validText(value.context, 0, 600) &&
+    Number.isInteger(value.targetStart) &&
+    value.targetStart >= 0 &&
+    Number.isInteger(value.targetLength) &&
+    value.targetLength > 0 &&
+    value.targetStart + value.targetLength <= value.context.length &&
     ["en", "zh-Hans"].includes(value.sourceLanguage) &&
     ["en", "zh-Hans"].includes(value.targetLanguage) &&
     value.sourceLanguage !== value.targetLanguage
-  );
+  )) return false;
+
+  const selected = value.context.slice(value.targetStart, value.targetStart + value.targetLength);
+  return value.sourceLanguage === "en"
+    ? selected.toLocaleLowerCase("en-US") === value.word.toLocaleLowerCase("en-US")
+    : selected === value.word;
 }
 
 function validText(value: unknown, minimum: number, maximum: number): value is string {
   if (typeof value !== "string") return false;
-  const length = Array.from(value).length;
+  const length = value.length;
   return length >= minimum && length <= maximum && value === value.trim();
 }
 
-function validAppVersion(value: unknown): value is string {
-  return typeof value === "string" && /^\d+\.\d+\.\d+(?:\([0-9]+\))?$/.test(value) && value.length <= 32;
+function validSecrets(env: Env): boolean {
+  return env.INSTALLATION_SECRET?.length >= 32 &&
+    env.DEEPSEEK_API_KEY?.length >= 8 &&
+    (!env.PREVIOUS_INSTALLATION_SECRET || env.PREVIOUS_INSTALLATION_SECRET.length >= 32);
 }
 
-function validSecrets(env: Env): boolean {
-  return env.INSTALLATION_SECRET?.length >= 32 && env.DEEPSEEK_API_KEY?.length >= 8;
+async function verifyWithActiveSecrets(token: string, env: Env, now: Date): Promise<string | null> {
+  const current = await verifyInstallationToken(token, env.INSTALLATION_SECRET, now);
+  if (current || !env.PREVIOUS_INSTALLATION_SECRET) return current;
+  return verifyInstallationToken(token, env.PREVIOUS_INSTALLATION_SECRET, now);
+}
+
+function knownRoute(pathname: string): string {
+  switch (pathname) {
+    case "/health":
+    case "/version":
+    case "/v1/installations":
+    case "/v1/context":
+      return pathname;
+    default:
+      return "unknown";
+  }
 }
 
 function validProductionIdentity(env: Env): boolean {

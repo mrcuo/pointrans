@@ -7,6 +7,8 @@ enum ContextAnalyzerError: Error, Equatable, Sendable {
     case safetyRefusal
     case unavailable
     case transient
+    case onlineUnavailable
+    case onlineServiceIncompatible
     case quotaExhausted(resetAt: Date?)
     case unauthorized
 }
@@ -15,7 +17,8 @@ enum ContextFallbackPolicy {
     static func shouldUseCloud(after error: ContextAnalyzerError) -> Bool {
         switch error {
         case .unavailable, .transient: true
-        case .invalidInput, .cancelled, .safetyRefusal, .quotaExhausted, .unauthorized: false
+        case .invalidInput, .cancelled, .safetyRefusal, .onlineUnavailable,
+             .onlineServiceIncompatible, .quotaExhausted, .unauthorized: false
         }
     }
 }
@@ -92,7 +95,15 @@ actor AppleContextAnalyzer: DeviceContextAnalyzing {
     private static func validate(_ request: TranslationRequest) throws {
         guard !request.word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               request.word.count <= 100,
-              request.context.count <= 600 else { throw ContextAnalyzerError.invalidInput }
+              request.context.utf16.count <= 600,
+              let targetRange = request.targetUTF16Range,
+              targetRange.location >= 0,
+              targetRange.length > 0,
+              NSMaxRange(targetRange) <= request.context.utf16.count,
+              let range = Range(targetRange, in: request.context),
+              String(request.context[range]).localizedCaseInsensitiveCompare(request.word) == .orderedSame else {
+            throw ContextAnalyzerError.invalidInput
+        }
     }
 
     private static func prompt(for request: TranslationRequest, base: BaseTranslation) -> String {
@@ -101,6 +112,7 @@ actor AppleContextAnalyzer: DeviceContextAnalyzing {
         Target language: \(request.direction.targetLanguage)
         Word: <word>\(request.word)</word>
         Context: <context>\(request.context)</context>
+        Target UTF-16 range: location=\(request.targetUTF16Range?.location ?? 0), length=\(request.targetUTF16Range?.length ?? request.word.utf16.count)
         Dictionary hints: <hints>\(base.meanings.joined(separator: "; "))</hints>
         Explain the contextual meaning for a language learner.
         """
@@ -119,12 +131,16 @@ actor ContextAnalyzerRouter: ContextAnalyzing {
         self.cloud = cloud
     }
 
-    func analyze(request: TranslationRequest, base: BaseTranslation) async throws -> InsightResult {
+    func analyze(
+        request: TranslationRequest,
+        base: BaseTranslation,
+        allowsCloudFallback: Bool
+    ) async throws -> InsightResult {
         do {
             let insight = try await apple.analyze(request: request, base: base)
             return InsightResult(insight: insight, route: .onDevice, remainingCloudQuota: nil, quotaResetAt: nil)
         } catch let error as ContextAnalyzerError {
-            if ContextFallbackPolicy.shouldUseCloud(after: error) {
+            if allowsCloudFallback && ContextFallbackPolicy.shouldUseCloud(after: error) {
                 try Task.checkCancellation()
                 return try await cloud.analyze(request: request, base: base)
             }

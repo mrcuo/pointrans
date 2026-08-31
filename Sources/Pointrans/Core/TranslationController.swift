@@ -6,7 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class TranslationController {
-    private(set) var state: TranslationState = .idle
+    private(set) var basePhase: BaseTranslationPhase = .idle
+    private(set) var insightPhase: ContextInsightPhase = .idle
     private(set) var panelMode: PanelMode = .hidden {
         didSet {
             monitor.setPreviewPointerTracking(panelMode.isPreview)
@@ -15,55 +16,93 @@ final class TranslationController {
     }
     private(set) var currentRequest: TranslationRequest?
     private(set) var extraction: ExtractionResult?
-    private(set) var baseTranslation: BaseTranslation?
-    private(set) var insight: InsightResult?
     private(set) var panelFrameQuartz: CGRect?
     private(set) var isPointerInsidePanel = false
-    private(set) var monitorAvailable = false
+    private(set) var accessibilityGranted: Bool { didSet { onStatusUpdate?() } }
+    private(set) var screenCaptureGranted: Bool { didSet { onStatusUpdate?() } }
+    private(set) var triggerRuntimeState: TriggerRuntimeState = .stopped {
+        didSet { onStatusUpdate?() }
+    }
 
     let preferences: AppPreferences
 
     @ObservationIgnored var onPanelUpdate: (() -> Void)?
+    @ObservationIgnored var onStatusUpdate: (() -> Void)?
 
     private let environment: ProviderEnvironment
-    private let monitor: EventTapMonitor
+    private let monitor: any EventMonitoring
     private var hoverMachine: HoverIntentMachine
     private var dwellTask: Task<Void, Never>?
     private var workTask: Task<Void, Never>?
-    private var enrichmentTask: Task<Void, Never>?
+    private var loadingPreviewTask: Task<Void, Never>?
     private var aiTask: Task<Void, Never>?
     private var previewDismissTask: Task<Void, Never>?
+    private var monitorRecoveryTask: Task<Void, Never>?
     private var safeCorridor: SafeCorridor?
     private var corridorExpiresAt: TimeInterval = 0
-    private var isTriggerModifierDown = false
+    private(set) var isTriggerModifierDown = false
+    private(set) var isTutorialMode = false
+    private var tutorialTarget: TutorialTarget?
+
+    private struct TutorialTarget {
+        let regionQuartz: CGRect
+        let word: String
+        let context: String
+        let targetUTF16Range: NSRange
+    }
 
     init(
         preferences: AppPreferences,
         environment: ProviderEnvironment,
-        monitor: EventTapMonitor? = nil
+        monitor: (any EventMonitoring)? = nil
     ) {
         self.preferences = preferences
         self.environment = environment
-        self.monitor = monitor ?? EventTapMonitor(modifier: preferences.triggerModifier)
+        self.monitor = monitor ?? EventTapMonitor()
+        accessibilityGranted = environment.permissions.accessibilityGranted
+        screenCaptureGranted = environment.permissions.screenCaptureGranted
         hoverMachine = HoverIntentMachine(configuration: .init(dwellDuration: preferences.hoverDelay))
         self.monitor.onEvent = { [weak self] event in self?.handle(event) }
-        self.monitor.onAvailabilityChanged = { [weak self] value in self?.monitorAvailable = value }
+        self.monitor.onAvailabilityChanged = { [weak self] value in self?.handleMonitorAvailability(value) }
     }
 
-    var accessibilityGranted: Bool { environment.permissions.accessibilityGranted }
-    var screenCaptureGranted: Bool { environment.permissions.screenCaptureGranted }
+    var monitorAvailable: Bool { triggerRuntimeState == .active }
+    var baseTranslation: BaseTranslation? { basePhase.translation }
+    var insight: InsightResult? { insightPhase.result }
 
-    func start() {
-        guard preferences.translationEnabled else { return }
-        do {
-            try monitor.start()
-        } catch {
-            monitorAvailable = false
+    var state: TranslationState {
+        if case .failed(let requestID, let failure) = basePhase {
+            return .failed(requestID: requestID, failure)
+        }
+        guard let requestID = basePhase.requestID else { return .idle }
+        if case .extracting = basePhase { return .extracting(requestID: requestID) }
+        guard let base = baseTranslation else { return .idle }
+        switch insightPhase {
+        case .loading:
+            return .enriching(requestID: requestID, base)
+        case .ready(_, let result):
+            return .ready(requestID: requestID, base, result)
+        case .failed(_, let failure):
+            return .failed(requestID: requestID, failure)
+        case .idle:
+            switch basePhase {
+            case .ready:
+                return .ready(requestID: requestID, base, nil)
+            case .idle, .extracting, .failed:
+                return .idle
+            }
         }
     }
 
+    func start() {
+        refreshCapabilities()
+    }
+
     func stop() {
+        monitorRecoveryTask?.cancel()
+        monitorRecoveryTask = nil
         monitor.stop()
+        triggerRuntimeState = .stopped
         isTriggerModifierDown = false
         hoverMachine.reset()
         cancelAllTasks()
@@ -79,47 +118,78 @@ final class TranslationController {
         }
     }
 
-    func setTriggerModifier(_ modifier: TriggerModifier) {
-        preferences.triggerModifier = modifier
-        monitor.updateModifier(modifier)
-    }
-
     func setHoverDelay(_ delay: Double) {
         preferences.hoverDelay = delay
         hoverMachine.configuration.dwellDuration = preferences.hoverDelay
     }
 
-    func setDirection(_ direction: TranslationDirection) {
-        guard preferences.direction != direction else { return }
-        preferences.direction = direction
-        cancelAllTasks()
+    func setCloudContextConsent(_ consent: CloudContextConsent) {
+        preferences.cloudContextConsent = consent
+        guard consent != .allowed, case .loading = insightPhase else { return }
+        aiTask?.cancel()
+        aiTask = nil
+        insightPhase = .idle
+    }
+
+    func setTutorialMode(_ enabled: Bool) {
+        isTutorialMode = enabled
+        if !enabled {
+            tutorialTarget = nil
+            closePanel()
+        }
+        onPanelUpdate?()
+    }
+
+    func updateTutorialTarget(
+        appKitFrame: CGRect,
+        word: String,
+        context: String,
+        targetUTF16Range: NSRange
+    ) {
+        tutorialTarget = TutorialTarget(
+            regionQuartz: ScreenCoordinates.appKitRectToQuartz(appKitFrame),
+            word: word,
+            context: context,
+            targetUTF16Range: targetUTF16Range
+        )
+    }
+
+    func retryTutorialAttempt() {
+        guard isTutorialMode else { return }
         closePanel()
     }
 
-    func setAIEnabled(_ enabled: Bool) {
-        guard preferences.aiEnabled != enabled else { return }
-        preferences.aiEnabled = enabled
-        guard !enabled else { return }
-
-        // The AI switch is also a privacy stop control. Turning it off must
-        // cancel any in-flight device/cloud work and remove previously
-        // generated context without disturbing the base dictionary result.
-        aiTask?.cancel()
-        aiTask = nil
-        insight = nil
-        if let request = currentRequest,
-           let base = baseTranslation,
-           panelMode != .hidden {
-            state = .ready(requestID: request.id, base, nil)
+    func refreshCapabilities() {
+        accessibilityGranted = environment.permissions.accessibilityGranted
+        screenCaptureGranted = environment.permissions.screenCaptureGranted
+        guard preferences.translationEnabled else {
+            monitorRecoveryTask?.cancel()
+            monitorRecoveryTask = nil
+            monitor.stop()
+            triggerRuntimeState = .stopped
+            return
         }
+        guard accessibilityGranted else {
+            monitorRecoveryTask?.cancel()
+            monitorRecoveryTask = nil
+            monitor.stop()
+            triggerRuntimeState = .waitingForAccessibility
+            return
+        }
+        guard screenCaptureGranted else {
+            monitorRecoveryTask?.cancel()
+            monitorRecoveryTask = nil
+            monitor.stop()
+            triggerRuntimeState = .waitingForScreenCapture
+            onStatusUpdate?()
+            return
+        }
+        guard triggerRuntimeState != .active, triggerRuntimeState != .starting else { return }
+        startMonitorWithRecovery()
     }
 
-    func requestAccessibilityPermission() {
-        environment.permissions.requestAccessibility()
-    }
-
-    func requestScreenCapturePermission() {
-        Task { _ = await environment.permissions.requestScreenCapture() }
+    func applicationDidBecomeActive() {
+        refreshCapabilities()
     }
 
     func updatePanelFrame(appKitFrame: CGRect) {
@@ -131,35 +201,36 @@ final class TranslationController {
         }
     }
 
-    func requestContextInsight() {
-        guard preferences.aiEnabled,
-              let request = currentRequest,
+    func requestContextInsight(allowsOnlineFallback: Bool? = nil) {
+        guard let request = currentRequest,
               let base = baseTranslation,
               panelMode != .hidden else { return }
         if case .preview = panelMode { pinPanel() }
 
         aiTask?.cancel()
-        state = .enriching(requestID: request.id, base)
+        insightPhase = .loading(requestID: request.id)
         aiTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let result = try await environment.analyzer.analyze(request: request, base: base)
+                let result = try await environment.analyzer.analyze(
+                    request: request,
+                    base: base,
+                    allowsCloudFallback: allowsOnlineFallback
+                        ?? (self.preferences.cloudContextConsent == .allowed)
+                )
                 try Task.checkCancellation()
                 guard self.currentRequest?.id == request.id else { return }
-                self.insight = result
-                self.state = .ready(requestID: request.id, self.baseTranslation ?? base, result)
+                self.insightPhase = .ready(requestID: request.id, result)
             } catch is CancellationError {
                 return
             } catch let error as ContextAnalyzerError {
                 guard !Task.isCancelled,
-                      self.preferences.aiEnabled,
                       self.currentRequest?.id == request.id else { return }
-                self.state = .failed(requestID: request.id, self.translationFailure(for: error))
+                self.insightPhase = .failed(requestID: request.id, self.translationFailure(for: error))
             } catch {
                 guard !Task.isCancelled,
-                      self.preferences.aiEnabled,
                       self.currentRequest?.id == request.id else { return }
-                self.state = .failed(requestID: request.id, .aiUnavailable)
+                self.insightPhase = .failed(requestID: request.id, .aiUnavailable)
             }
         }
     }
@@ -176,7 +247,7 @@ final class TranslationController {
         hoverMachine.reset()
         dwellTask?.cancel()
         workTask?.cancel()
-        enrichmentTask?.cancel()
+        loadingPreviewTask?.cancel()
         aiTask?.cancel()
         previewDismissTask?.cancel()
         panelMode = .hidden
@@ -185,9 +256,8 @@ final class TranslationController {
         isPointerInsidePanel = false
         currentRequest = nil
         extraction = nil
-        baseTranslation = nil
-        insight = nil
-        state = .idle
+        basePhase = .idle
+        insightPhase = .idle
     }
 
     func panelHideAnimationCompleted(sessionID: UUID) {
@@ -212,6 +282,7 @@ final class TranslationController {
             displayID: displayID,
             word: "pulling",
             context: "She kept pulling the thread until the knot came loose.",
+            targetUTF16Range: NSRange(location: 9, length: 7),
             direction: .englishToChinese,
             createdAt: Date()
         )
@@ -227,12 +298,12 @@ final class TranslationController {
             deviceTranslation: "拉动",
             phonetic: "/ˈpʊlɪŋ/",
             pinyin: nil,
-            source: .dictionaryAndApple
+            source: .deviceAI
         )
         currentRequest = request
         extraction = extracted
-        baseTranslation = base
-        state = .ready(requestID: id, base, nil)
+        basePhase = .ready(requestID: id, base)
+        insightPhase = .idle
         panelMode = pinned ? .pinned(sessionID: id) : .preview(sessionID: id)
     }
     #endif
@@ -241,6 +312,7 @@ final class TranslationController {
         guard preferences.translationEnabled else { return }
         switch event {
         case .modifierPressed(let point, let timestamp):
+            if isTutorialMode, tutorialTarget?.regionQuartz.contains(point) != true { return }
             guard !panelMode.isPinned else { return }
             isTriggerModifierDown = true
             if case .preview = panelMode {
@@ -250,6 +322,12 @@ final class TranslationController {
 
         case .modifierReleased(let point, let timestamp):
             isTriggerModifierDown = false
+            if case .extracting = basePhase {
+                if panelMode.isPreview { panelMode = .hidden }
+                apply(hoverMachine.modifierReleased())
+                clearUnpresentedSession()
+                return
+            }
             if shouldPreservePreview(at: point, timestamp: timestamp) {
                 if panelFrameQuartz?.contains(point) == true {
                     previewDismissTask?.cancel()
@@ -329,7 +407,7 @@ final class TranslationController {
 
             case .cancelExtraction:
                 workTask?.cancel()
-                enrichmentTask?.cancel()
+                loadingPreviewTask?.cancel()
                 if panelMode == .hidden {
                     clearUnpresentedSession()
                 }
@@ -343,100 +421,127 @@ final class TranslationController {
     private func beginExtraction(anchor: CGPoint, generation: UInt64) {
         cancelSessionWork()
         guard let displayID = displayID(containing: anchor) else {
-            state = .failed(requestID: nil, .extractionUnavailable)
+            basePhase = .failed(requestID: nil, .extractionUnavailable)
             apply(hoverMachine.extractionFailed(generation: generation))
             return
         }
 
         let requestID = UUID()
-        let direction = preferences.direction
         clearUnpresentedSession()
-        state = .extracting(requestID: requestID)
+        basePhase = .extracting(requestID: requestID)
+        insightPhase = .idle
         workTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let extracted = try await environment.extractor.extract(
-                    at: anchor,
-                    displayID: displayID,
-                    direction: direction
-                )
+                let extracted: ExtractionResult
+                if let guided = guidedExtraction(at: anchor) {
+                    extracted = guided
+                } else {
+                    extracted = try await environment.extractor.extract(at: anchor, displayID: displayID)
+                }
                 try Task.checkCancellation()
                 guard case .extracting(_, let currentGeneration) = hoverMachine.state,
                       currentGeneration == generation else { return }
 
+                guard let direction = extracted.detectedLanguage.direction else {
+                    throw ExtractionError.noTextAtPointer
+                }
+                let boundedContext = TextTokenizer.boundedContext(
+                    extracted.context,
+                    targetUTF16Range: extracted.targetUTF16Range
+                ) ?? TextTokenizer.ContextWindow(
+                    text: extracted.word,
+                    targetUTF16Range: NSRange(location: 0, length: extracted.word.utf16.count)
+                )
                 let request = TranslationRequest(
                     id: requestID,
                     screenPoint: anchor,
                     displayID: displayID,
                     word: extracted.word,
-                    context: TextTokenizer.truncatedUTF16(extracted.context, maximumLength: 600),
+                    context: boundedContext.text,
+                    targetUTF16Range: boundedContext.targetUTF16Range,
                     direction: direction,
                     createdAt: Date()
                 )
                 currentRequest = request
                 extraction = extracted
+                scheduleLoadingPreview(for: requestID, generation: generation)
 
                 let base: BaseTranslation
                 do {
-                    base = try await environment.translator.translate(
-                        word: request.word,
-                        context: request.context,
-                        direction: request.direction
-                    )
+                    base = try await environment.translator.translate(request: request)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
                     guard case .extracting(_, let currentGeneration) = hoverMachine.state,
                           currentGeneration == generation else { return }
-                    state = .failed(requestID: requestID, .translationUnavailable)
+                    basePhase = .failed(requestID: requestID, .translationUnavailable)
                     hoverMachine.reset()
+                    if isTutorialMode {
+                        panelMode = .pinned(sessionID: requestID)
+                    } else {
+                        panelMode = .preview(sessionID: requestID)
+                        schedulePreviewDismiss(after: 1.4)
+                    }
                     return
                 }
                 try Task.checkCancellation()
                 guard currentRequest?.id == requestID,
                       case .extracting(_, let currentGeneration) = hoverMachine.state,
                       currentGeneration == generation else { return }
-                baseTranslation = base
+                basePhase = .ready(requestID: requestID, base)
                 hoverMachine.extractionSucceeded(sessionID: requestID, generation: generation)
-                state = .baseReady(requestID: requestID, base)
-                panelMode = .preview(sessionID: requestID)
-                beginDeviceEnrichment(for: request, base: base)
+                if isTutorialMode {
+                    hoverMachine.pinPreview()
+                    panelMode = .pinned(sessionID: requestID)
+                } else {
+                    panelMode = .preview(sessionID: requestID)
+                }
             } catch is CancellationError {
                 return
+            } catch let error as ExtractionError {
+                guard case .extracting(_, let currentGeneration) = hoverMachine.state,
+                      currentGeneration == generation else { return }
+                basePhase = .failed(requestID: requestID, extractionFailure(for: error))
+                refreshCapabilities()
+                if error == .accessibilityPermissionRequired || error == .screenCapturePermissionRequired {
+                    hoverMachine.reset()
+                } else {
+                    apply(hoverMachine.extractionFailed(generation: generation))
+                }
             } catch {
                 guard case .extracting(_, let currentGeneration) = hoverMachine.state,
                       currentGeneration == generation else { return }
-                state = .failed(requestID: requestID, .noTextFound)
+                basePhase = .failed(requestID: requestID, .noTextFound)
                 apply(hoverMachine.extractionFailed(generation: generation))
             }
         }
     }
 
-    private func beginDeviceEnrichment(for request: TranslationRequest, base: BaseTranslation) {
-        enrichmentTask?.cancel()
-        enrichmentTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let enriched = try await environment.translator.enrich(
-                    base,
-                    word: request.word,
-                    context: request.context,
-                    direction: request.direction
-                )
-                try Task.checkCancellation()
-                guard currentRequest?.id == request.id else { return }
-                baseTranslation = enriched
-                state = .ready(requestID: request.id, enriched, insight)
-            } catch is CancellationError {
-                return
-            } catch {
-                guard currentRequest?.id == request.id else { return }
-                if base.meanings.isEmpty {
-                    state = .failed(requestID: request.id, .translationUnavailable)
-                } else {
-                    state = .ready(requestID: request.id, base, insight)
-                }
-            }
+    private func guidedExtraction(at anchor: CGPoint) -> ExtractionResult? {
+        guard isTutorialMode,
+              let target = tutorialTarget,
+              target.regionQuartz.contains(anchor) else { return nil }
+        return ExtractionResult(
+            word: target.word,
+            context: target.context,
+            targetUTF16Range: target.targetUTF16Range,
+            bounds: target.regionQuartz,
+            confidence: 1,
+            source: .guidedSample,
+            detectedLanguage: .detect(target.word)
+        )
+    }
+
+    private func scheduleLoadingPreview(for requestID: UUID, generation: UInt64) {
+        loadingPreviewTask?.cancel()
+        loadingPreviewTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, let self,
+                  self.currentRequest?.id == requestID,
+                  case .extracting(_, let currentGeneration) = self.hoverMachine.state,
+                  currentGeneration == generation else { return }
+            self.panelMode = .preview(sessionID: requestID)
         }
     }
 
@@ -447,7 +552,6 @@ final class TranslationController {
         // The panel coordinator uses this ID to guard its animation completion.
         if currentRequest?.id == sessionID {
             cancelSessionWork()
-            state = .idle
         }
     }
 
@@ -466,10 +570,10 @@ final class TranslationController {
 
     private func cancelSessionWork() {
         workTask?.cancel()
-        enrichmentTask?.cancel()
+        loadingPreviewTask?.cancel()
         aiTask?.cancel()
         workTask = nil
-        enrichmentTask = nil
+        loadingPreviewTask = nil
         aiTask = nil
     }
 
@@ -477,8 +581,8 @@ final class TranslationController {
         guard panelMode == .hidden else { return }
         currentRequest = nil
         extraction = nil
-        baseTranslation = nil
-        insight = nil
+        basePhase = .idle
+        insightPhase = .idle
         panelFrameQuartz = nil
         safeCorridor = nil
         isPointerInsidePanel = false
@@ -488,14 +592,11 @@ final class TranslationController {
         guard currentRequest?.id == sessionID else { return }
         currentRequest = nil
         extraction = nil
-        baseTranslation = nil
-        insight = nil
+        basePhase = .idle
+        insightPhase = .idle
         panelFrameQuartz = nil
         safeCorridor = nil
         isPointerInsidePanel = false
-        if state.requestID == sessionID || state == .idle {
-            state = .idle
-        }
     }
 
     private func cancelAllTasks() {
@@ -504,14 +605,106 @@ final class TranslationController {
         cancelSessionWork()
     }
 
+    private func handleMonitorAvailability(_ available: Bool) {
+        guard preferences.translationEnabled else {
+            triggerRuntimeState = .stopped
+            return
+        }
+        if available {
+            monitorRecoveryTask?.cancel()
+            monitorRecoveryTask = nil
+            triggerRuntimeState = .active
+        } else if accessibilityGranted && screenCaptureGranted {
+            triggerRuntimeState = .recovering
+            scheduleMonitorRecovery()
+        } else if !accessibilityGranted {
+            triggerRuntimeState = .waitingForAccessibility
+        } else {
+            triggerRuntimeState = .waitingForScreenCapture
+        }
+    }
+
+    private func startMonitorWithRecovery() {
+        triggerRuntimeState = .starting
+        do {
+            try monitor.start()
+            if triggerRuntimeState == .starting { triggerRuntimeState = .active }
+        } catch {
+            triggerRuntimeState = .recovering
+            scheduleMonitorRecovery()
+        }
+    }
+
+    private func scheduleMonitorRecovery() {
+        guard monitorRecoveryTask == nil else { return }
+        monitorRecoveryTask = Task { [weak self] in
+            let delays: [Duration] = [
+                .milliseconds(500), .seconds(1), .seconds(2), .seconds(4), .seconds(8)
+            ]
+            for delay in delays {
+                do {
+                    try await Task.sleep(for: delay)
+                } catch {
+                    self?.monitorRecoveryTask = nil
+                    return
+                }
+                guard let self else { return }
+                guard self.preferences.translationEnabled else {
+                    self.monitorRecoveryTask = nil
+                    return
+                }
+                self.accessibilityGranted = self.environment.permissions.accessibilityGranted
+                self.screenCaptureGranted = self.environment.permissions.screenCaptureGranted
+                guard self.accessibilityGranted else {
+                    self.triggerRuntimeState = .waitingForAccessibility
+                    self.monitorRecoveryTask = nil
+                    return
+                }
+                guard self.screenCaptureGranted else {
+                    self.triggerRuntimeState = .waitingForScreenCapture
+                    self.monitorRecoveryTask = nil
+                    return
+                }
+                self.triggerRuntimeState = .starting
+                do {
+                    try self.monitor.start()
+                    if self.triggerRuntimeState == .starting { self.triggerRuntimeState = .active }
+                    self.monitorRecoveryTask = nil
+                    return
+                } catch {
+                    self.triggerRuntimeState = .recovering
+                }
+            }
+            guard let self else { return }
+            guard self.preferences.translationEnabled else {
+                self.monitorRecoveryTask = nil
+                return
+            }
+            self.triggerRuntimeState = .failed
+            self.monitorRecoveryTask = nil
+        }
+    }
+
+    private func extractionFailure(for error: ExtractionError) -> TranslationFailure {
+        switch error {
+        case .accessibilityPermissionRequired, .screenCapturePermissionRequired:
+            .permissionRequired
+        case .noTextAtPointer:
+            .noTextFound
+        case .unsupportedApplication, .captureFailed:
+            .extractionUnavailable
+        }
+    }
+
     private func translationFailure(for error: ContextAnalyzerError) -> TranslationFailure {
         switch error {
         case .invalidInput: .message(String(localized: "The selected text cannot be analyzed."))
         case .cancelled: .cancelled
         case .safetyRefusal: .message(String(localized: "This context cannot be analyzed on device."))
         case .unavailable, .transient: .aiUnavailable
+        case .onlineUnavailable, .unauthorized: .onlineUnavailable
+        case .onlineServiceIncompatible: .onlineServiceIncompatible
         case .quotaExhausted(let resetAt): .quotaExhausted(resetAt: resetAt)
-        case .unauthorized: .aiUnavailable
         }
     }
 

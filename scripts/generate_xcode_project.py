@@ -89,10 +89,12 @@ def main() -> None:
     unit_sources = sorted((ROOT / "Tests" / "PointransTests").glob("*.swift"))
     ui_sources = sorted((ROOT / "Tests" / "PointransUITests").glob("*.swift"))
     unit_support_sources = [
+        app_root / "Core" / "ApplicationLifetime.swift",
         app_root / "Core" / "AppPreferences.swift",
         app_root / "Core" / "DomainModels.swift",
         app_root / "Core" / "HoverIntentMachine.swift",
         app_root / "Core" / "LanguagePackManager.swift",
+        app_root / "Core" / "PermissionCoordinator.swift",
         app_root / "Core" / "ProviderProtocols.swift",
         app_root / "Core" / "SafeCorridor.swift",
         app_root / "Core" / "ScreenCoordinates.swift",
@@ -109,6 +111,7 @@ def main() -> None:
         app_root / "Services" / "TextTokenizer.swift",
         app_root / "UI" / "ControlCenterView.swift",
         app_root / "UI" / "DesignSystem.swift",
+        app_root / "UI" / "GuidedSampleView.swift",
         app_root / "UI" / "TranslationCardView.swift",
     ]
     resources = [
@@ -194,7 +197,10 @@ def main() -> None:
     unit_resources_phase = build_phase(
         "resources",
         "PBXResourcesBuildPhase",
-        [app_root / "Resources" / "Dictionary.sqlite3"],
+        [
+            app_root / "Resources" / "Assets.xcassets",
+            app_root / "Resources" / "Dictionary.sqlite3",
+        ],
         "unit",
     )
     ui_resources_phase = build_phase("resources", "PBXResourcesBuildPhase", [], "ui")

@@ -1,87 +1,143 @@
 import XCTest
 
 final class BaseTranslationServiceTests: XCTestCase {
-    func testFastLookupDoesNotWaitForDeviceTranslation() async throws {
-        let dictionary = try DictionaryStore(databaseURL: dictionaryURL())
-        let device = DeviceTranslatorStub(result: .success("你好"))
-        let service = BaseTranslationService(dictionary: dictionary, apple: device)
-
-        let base = try await service.translate(
-            word: "hello",
-            context: "hello there",
-            direction: .englishToChinese
+    func testDeviceAIWinsWhenItFinishesWithinDeadline() async throws {
+        let service = try makeService(
+            deviceAI: DeviceAITranslatorStub(.success("语境翻译")),
+            apple: AppleTranslatorStub(.success("苹果翻译")),
+            deadline: .seconds(1)
         )
 
-        XCTAssertEqual(base.meanings.first, "你好")
-        XCTAssertNil(base.deviceTranslation)
-        let callCount = await device.callCount
-        XCTAssertEqual(callCount, 0)
+        let result = try await service.translate(request: request(word: "hello", context: "hello there"))
+
+        XCTAssertEqual(result.primaryText, "语境翻译")
+        XCTAssertEqual(result.source, .deviceAI)
     }
 
-    func testDeviceTranslationEnrichesDictionaryResult() async throws {
-        let dictionary = try DictionaryStore(databaseURL: dictionaryURL())
-        let device = DeviceTranslatorStub(result: .success("拉动"))
-        let service = BaseTranslationService(dictionary: dictionary, apple: device)
-        let base = BaseTranslation(
-            meanings: ["拉取"],
-            deviceTranslation: nil,
-            phonetic: nil,
-            pinyin: nil,
-            source: .dictionary
+    func testAIThatMissesDeadlineCannotReplaceAppleResult() async throws {
+        let deviceAI = DeviceAITranslatorStub(.cancellationIgnoringDelay("迟到结果", .milliseconds(400)))
+        let service = try makeService(
+            deviceAI: deviceAI,
+            apple: AppleTranslatorStub(.success("苹果翻译")),
+            deadline: .milliseconds(5)
         )
 
-        let enriched = try await service.enrich(
-            base,
-            word: "pulling",
-            context: "She kept pulling the thread.",
-            direction: .englishToChinese
-        )
+        let clock = ContinuousClock()
+        let started = clock.now
+        let result = try await service.translate(request: request(word: "hello", context: "hello there"))
+        let elapsed = started.duration(to: clock.now)
+        try await Task.sleep(for: .milliseconds(420))
 
-        XCTAssertEqual(enriched.deviceTranslation, "拉动")
-        XCTAssertEqual(enriched.source, .dictionaryAndApple)
-        let callCount = await device.callCount
-        XCTAssertEqual(callCount, 1)
+        XCTAssertEqual(result.primaryText, "苹果翻译")
+        XCTAssertEqual(result.source, .appleTranslation)
+        XCTAssertLessThan(elapsed, .milliseconds(200))
+        let wasCancelled = await deviceAI.wasCancelled
+        XCTAssertTrue(wasCancelled)
     }
 
-    func testMissingLanguagePackNeverBlocksExistingDictionaryMeaning() async throws {
-        let dictionary = try DictionaryStore(databaseURL: dictionaryURL())
-        let device = DeviceTranslatorStub(result: .failure(.unavailable))
-        let service = BaseTranslationService(dictionary: dictionary, apple: device)
-        let base = BaseTranslation(
-            meanings: ["离线释义"],
-            deviceTranslation: nil,
-            phonetic: nil,
-            pinyin: nil,
-            source: .dictionary
+    func testDeviceAIFailureFallsBackToAppleTranslation() async throws {
+        let service = try makeService(
+            deviceAI: DeviceAITranslatorStub(.failure),
+            apple: AppleTranslatorStub(.success("苹果翻译")),
+            deadline: .milliseconds(5)
         )
 
-        let result = try await service.enrich(
-            base,
-            word: "word",
-            context: "word in context",
-            direction: .englishToChinese
+        let result = try await service.translate(request: request(word: "hello", context: "hello there"))
+
+        XCTAssertEqual(result.primaryText, "苹果翻译")
+        XCTAssertEqual(result.source, .appleTranslation)
+    }
+
+    func testDictionaryIsFinalFallbackWhenBothBuiltInTranslatorsFail() async throws {
+        let service = try makeService(
+            deviceAI: DeviceAITranslatorStub(.failure),
+            apple: AppleTranslatorStub(.failure),
+            deadline: .milliseconds(5)
         )
 
-        XCTAssertEqual(result, base)
+        let result = try await service.translate(request: request(word: "hello", context: "hello there"))
+
+        XCTAssertEqual(result.meanings.first, "你好")
+        XCTAssertEqual(result.source, .dictionary)
+    }
+
+    private func makeService(
+        deviceAI: any DeviceAITranslating,
+        apple: any DeviceTranslating,
+        deadline: Duration
+    ) throws -> BaseTranslationService {
+        BaseTranslationService(
+            dictionary: try DictionaryStore(databaseURL: dictionaryURL()),
+            deviceAI: deviceAI,
+            apple: apple,
+            deviceAIDeadline: deadline
+        )
     }
 
     private func dictionaryURL() throws -> URL {
         try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Dictionary", withExtension: "sqlite3"))
     }
+
+    private func request(word: String, context: String) -> TranslationRequest {
+        TranslationRequest(
+            id: UUID(),
+            screenPoint: .zero,
+            displayID: 0,
+            word: word,
+            context: context,
+            direction: .englishToChinese,
+            createdAt: Date()
+        )
+    }
 }
 
-private actor DeviceTranslatorStub: DeviceTranslating {
-    enum StubError: Error, Sendable { case unavailable }
-
-    let result: Result<String, StubError>
-    private(set) var callCount = 0
-
-    init(result: Result<String, StubError>) {
-        self.result = result
+private actor DeviceAITranslatorStub: DeviceAITranslating {
+    enum Behavior: Sendable {
+        case success(String)
+        case cancellationIgnoringDelay(String, Duration)
+        case failure
     }
+    enum StubError: Error { case unavailable }
+
+    let behavior: Behavior
+    private(set) var wasCancelled = false
+
+    init(_ behavior: Behavior) { self.behavior = behavior }
+
+    func translate(request: TranslationRequest) async throws -> String {
+        do {
+            switch behavior {
+            case .success(let value):
+                return value
+            case .cancellationIgnoringDelay(let value, let duration):
+                do {
+                    try await Task.sleep(for: duration)
+                } catch is CancellationError {
+                    wasCancelled = true
+                    try? await Task.sleep(for: duration)
+                }
+                return value
+            case .failure:
+                throw StubError.unavailable
+            }
+        } catch is CancellationError {
+            wasCancelled = true
+            throw CancellationError()
+        }
+    }
+}
+
+private actor AppleTranslatorStub: DeviceTranslating {
+    enum Behavior: Sendable { case success(String), failure }
+    enum StubError: Error { case unavailable }
+    let behavior: Behavior
+
+    init(_ behavior: Behavior) { self.behavior = behavior }
 
     func translate(_ text: String, direction: TranslationDirection) async throws -> String {
-        callCount += 1
-        return try result.get()
+        switch behavior {
+        case .success(let value): return value
+        case .failure: throw StubError.unavailable
+        }
     }
 }
