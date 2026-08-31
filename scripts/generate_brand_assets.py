@@ -10,7 +10,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "Sources" / "Pointrans" / "Resources" / "Assets.xcassets" / "AppIcon.appiconset"
 BRAND_ROOT = ROOT / "Pointrans_Logo_Design_Files"
-APP_ICON_SOURCE = BRAND_ROOT / "02_Symbol" / "pointrans_symbol_black_on_white_1024.png"
+APP_ICON_SOURCE = BRAND_ROOT / "02_Symbol" / "pointrans_symbol_white_on_black_1024.png"
 SYMBOL_SOURCE = BRAND_ROOT / "02_Symbol" / "pointrans_symbol_black.svg"
 LOGO_SOURCE = BRAND_ROOT / "01_Master_Vector" / "pointrans_logo_master_black.svg"
 SYMBOL_OUTPUT = (
@@ -39,6 +39,22 @@ def icon(master: Image.Image, size: int) -> Image.Image:
     return master.resize((size, size), Image.Resampling.LANCZOS)
 
 
+def validate_software_icon(master: Image.Image) -> None:
+    if master.size != (1024, 1024):
+        raise SystemExit(f"Expected a 1024 x 1024 AppIcon source, found {master.size}")
+
+    corners = (
+        master.getpixel((0, 0)),
+        master.getpixel((master.width - 1, 0)),
+        master.getpixel((0, master.height - 1)),
+        master.getpixel((master.width - 1, master.height - 1)),
+    )
+    if any(alpha != 255 or max(red, green, blue) > 8 for red, green, blue, alpha in corners):
+        raise SystemExit("Expected the approved opaque black AppIcon canvas")
+    if master.convert("L").getextrema()[1] < 247:
+        raise SystemExit("Expected the approved white Pointrans symbol on the AppIcon canvas")
+
+
 def main() -> None:
     required = (APP_ICON_SOURCE, SYMBOL_SOURCE, LOGO_SOURCE)
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
@@ -60,8 +76,7 @@ def main() -> None:
     }
     with Image.open(APP_ICON_SOURCE) as source:
         master = source.convert("RGBA")
-        if master.size != (1024, 1024):
-            raise SystemExit(f"Expected a 1024 x 1024 AppIcon source, found {master.size}")
+        validate_software_icon(master)
         for filename, size in files.items():
             icon(master, size).save(OUTPUT / filename, optimize=True)
 
@@ -69,7 +84,9 @@ def main() -> None:
     LOGO_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     copy2(SYMBOL_SOURCE, SYMBOL_OUTPUT)
     copy2(LOGO_SOURCE, LOGO_OUTPUT)
-    print(f"Generated {len(files)} AppIcon files and copied the approved vector mark and lockup")
+    print(
+        f"Generated {len(files)} dark-canvas AppIcon files and copied the approved vector mark and lockup"
+    )
 
 
 if __name__ == "__main__":

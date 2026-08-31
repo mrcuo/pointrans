@@ -12,7 +12,7 @@
 - 离屏 UI 烟雾测试：控制中心、Preview 和 Pinned 均通过 `NSHostingView` 渲染与有效像素检查。
 - SQLite 词典：启动时执行 `quick_check(1)`、格式版本和双向非空表校验；交付验证再次执行 `PRAGMA quick_check`。
 - Swift 和 Worker 的生成文件已重建，`git diff --check`、Info.plist、String Catalog JSON 和旧产品契约静态扫描均通过。
-- AppIcon、菜单栏 Symbol 和页头横版 Logo 均由 `Pointrans_Logo_Design_Files` 内的 v1.1 定稿生成或无损复制；测试包显式验证两项矢量资源可以按名称加载。
+- AppIcon 固定由 v1.1 的黑底白色 Symbol 软件图标画布生成，并在生成期拒绝白底黑色变体；菜单栏 Symbol 和页头横版 Logo 由 `Pointrans_Logo_Design_Files` 内的矢量定稿无损复制，测试包显式验证两项矢量资源可以按名称加载。
 
 自动化覆盖的关键产品契约：
 
