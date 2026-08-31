@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="199" height="199" viewBox="0 0 199 199" role="img" aria-labelledby="title desc">
+  <title id="title">Pointrans symbol - black</title>
+  <desc id="desc">Flat vector artwork. Cursor top-right corner refined with a tangent circular fillet. No gradients, shadows, textures, live text, or linked fonts.</desc>
+  <g id="symbol" fill="#000000"><path id="symbol-body" d="M 20 1 L 141 1 C 174 1 199 27 199 65 C 199 95 182 118 159 129 C 140 137 118 141 100 144 C 107 135 111 127 111 116 L 111 87 C 111 73 101 64 88 64 C 82 64 77 65 72 67 L 11 90 C 5 92 0 88 0 82 L 0 33 C 0 15 8 1 20 1 Z"/><path id="symbol-cursor" d="M 84 120 L 74 181 C 72 194 66 201 58 197 L 5 148 C -1 142 0 136 8 132 L 69.308242 108.100177 A 10.882495 10.882495 0 0 1 84 120 Z"/></g>
+</svg>
