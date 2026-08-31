@@ -45,7 +45,10 @@ final class AppPreferences {
     }
 
     private static let legacyOnboardingVersion = 1
-    static let currentOnboardingVersion = 3
+    // Version 4 replaces the former embedded final page with the real floating
+    // Preview/Pinned interaction. Existing installations must see the rebuilt
+    // experience once; deleting UserDefaults would break identity continuity.
+    static let currentOnboardingVersion = 4
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -58,8 +61,8 @@ final class AppPreferences {
             ?? (legacyComplete ? Self.legacyOnboardingVersion : 0)
         let persistedStage = defaults.string(forKey: Key.onboardingStage) ?? ""
         // Version 2 exposed cloud routing as a standalone onboarding page.
-        // Version 3 asks only at the exact moment an online explanation is
-        // needed, so an interrupted legacy privacy page resumes in practice.
+        // Versions 3 and 4 ask only at the exact moment an online explanation
+        // is needed, so an interrupted legacy privacy page resumes in practice.
         onboardingStage = persistedStage == "privacy"
             ? .guidedExperience
             : OnboardingStage(rawValue: persistedStage) ?? (legacyComplete ? .complete : .welcome)

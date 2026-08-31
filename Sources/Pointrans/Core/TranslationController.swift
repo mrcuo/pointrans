@@ -140,6 +140,16 @@ final class TranslationController {
         onPanelUpdate?()
     }
 
+    /// Leaves the guarded sample area after a successful first-run session,
+    /// while preserving the real pinned card the user just created. From this
+    /// point onward the session behaves exactly like any normal translation.
+    func completeTutorialModeKeepingResult() {
+        guard isTutorialMode else { return }
+        isTutorialMode = false
+        tutorialTarget = nil
+        onPanelUpdate?()
+    }
+
     func updateTutorialTarget(
         appKitFrame: CGRect,
         word: String,
@@ -477,12 +487,8 @@ final class TranslationController {
                           currentGeneration == generation else { return }
                     basePhase = .failed(requestID: requestID, .translationUnavailable)
                     hoverMachine.reset()
-                    if isTutorialMode {
-                        panelMode = .pinned(sessionID: requestID)
-                    } else {
-                        panelMode = .preview(sessionID: requestID)
-                        schedulePreviewDismiss(after: 1.4)
-                    }
+                    panelMode = .preview(sessionID: requestID)
+                    schedulePreviewDismiss(after: 1.4)
                     return
                 }
                 try Task.checkCancellation()
@@ -491,12 +497,7 @@ final class TranslationController {
                       currentGeneration == generation else { return }
                 basePhase = .ready(requestID: requestID, base)
                 hoverMachine.extractionSucceeded(sessionID: requestID, generation: generation)
-                if isTutorialMode {
-                    hoverMachine.pinPreview()
-                    panelMode = .pinned(sessionID: requestID)
-                } else {
-                    panelMode = .preview(sessionID: requestID)
-                }
+                panelMode = .preview(sessionID: requestID)
             } catch is CancellationError {
                 return
             } catch let error as ExtractionError {

@@ -44,33 +44,51 @@ final class PointransUITests: XCTestCase {
         let app = launch(scenario: "ai-failure")
         XCTAssertTrue(element("translation-preview", in: app).waitForExistence(timeout: 3))
         app.buttons["context-insight-button"].click()
-        XCTAssertTrue(app.staticTexts["Context insight is temporarily unavailable."].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["The explanation is temporarily unavailable."].waitForExistence(timeout: 3))
         app.buttons["close-pinned-button"].click()
         XCTAssertFalse(element("translation-pinned", in: app).waitForExistence(timeout: 1))
     }
 
-    func testOnboardingLeadsDirectlyIntoTheVisibleRealExperience() throws {
+    func testOnboardingStartsWithAVisibleStatusItemAndExit() throws {
         let app = launch(scenario: "onboarding")
-        XCTAssertTrue(element("onboarding-window", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Quit Pointrans"].exists)
+        XCTAssertTrue(element("pointrans-onboarding-window", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Quit Pointrans"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["_XCUI:CloseWindow"].waitForExistence(timeout: 2))
+        let statusItem = element("pointrans-menu-bar-button", in: app)
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 2))
+        XCTAssertGreaterThan(statusItem.frame.width, 70)
+        XCTAssertGreaterThan(statusItem.frame.height, 20)
 
         let optionBadge = element("welcome-left-option-badge", in: app)
         XCTAssertTrue(optionBadge.waitForExistence(timeout: 2))
-        app.typeKey(XCUIKeyboardKey.option, modifierFlags: [])
 
-        for _ in 0..<3 {
-            let button = app.buttons["onboarding-continue-button"]
-            XCTAssertTrue(button.waitForExistence(timeout: 2))
-            XCTAssertTrue(button.isEnabled)
-            button.click()
-        }
+        app.buttons["Quit Pointrans"].click()
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 3))
+    }
 
-        XCTAssertTrue(element("guided-target-word", in: app).waitForExistence(timeout: 2))
-        XCTAssertTrue(element("guided-live-result", in: app).exists)
-        XCTAssertTrue(app.staticTexts["Move the pointer onto the blue word, then hold Left Option."].exists)
+    func testGuidedStageIsTheRealPracticeSurfaceWithoutAFakeResultPage() throws {
+        let app = launch(scenario: "onboarding-guided")
+        XCTAssertTrue(element("pointrans-onboarding-window", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Quit Pointrans"].waitForExistence(timeout: 2))
+        XCTAssertTrue(element("pointrans-menu-bar-button", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["breakthrough"].waitForExistence(timeout: 2))
+        XCTAssertTrue(element("guided-practice-status", in: app).exists)
+        XCTAssertTrue(app.staticTexts["Pointrans is ready. Try it here."].exists)
+        XCTAssertTrue(app.staticTexts["Point to the blue word and hold Left Option"].exists)
+        XCTAssertFalse(element("guided-live-result", in: app).exists)
         XCTAssertFalse(app.staticTexts["Choose how context can recover"].exists)
         XCTAssertFalse(app.buttons["Allow cloud fallback"].exists)
         XCTAssertFalse(app.buttons["onboarding-finish-button"].exists)
+    }
+
+    func testClosingTheOnboardingWindowTerminatesTheMenuBarProcess() throws {
+        let app = launch(scenario: "onboarding")
+        let close = app.buttons["_XCUI:CloseWindow"]
+        XCTAssertTrue(close.waitForExistence(timeout: 3))
+
+        app.activate()
+        close.click()
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 3))
     }
 
     func testControlCenterFollowsChineseAndDarkAppearance() throws {

@@ -47,7 +47,6 @@ struct OnboardingView: View {
             guidedFinishTask?.cancel()
             guidedFinishTask = nil
         }
-        .accessibilityIdentifier("onboarding-window")
     }
 
     private var topBar: some View {
@@ -223,12 +222,15 @@ struct OnboardingView: View {
     }
 
     private var guidedExperience: some View {
-        VStack(spacing: 13) {
-            Text(String(localized: "Try it once. You're ready."))
+        VStack(spacing: 18) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 38, weight: .semibold))
+                .foregroundStyle(.green)
+            Text(String(localized: "Pointrans is ready. Try it here."))
                 .font(.system(size: 25, weight: .bold, design: .rounded))
-            Text(guidedInstruction)
+            Text(String(localized: "This is the real Pointrans interaction—not a simulated result. The translation card will appear beside your pointer."))
                 .font(.system(size: 13.5))
-                .foregroundStyle(guidedExperienceComplete ? .green : .secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 470)
 
@@ -257,262 +259,128 @@ struct OnboardingView: View {
                 .animation(.easeOut(duration: 0.12), value: controller.isTriggerModifierDown)
                 .accessibilityIdentifier("guided-sample")
 
-            guidedResultCard
+            guidedCoach
         }
-    }
-
-    private var guidedInstruction: String {
-        if guidedExperienceComplete {
-            return String(localized: "That's it — Pointrans is ready in your menu bar.")
-        }
-        if case .loading = controller.insightPhase {
-            return String(localized: "Pointrans is reading the sentence. No other action is needed.")
-        }
-        if guidedTranslationComplete {
-            return String(localized: "Translation is ready. Now ask what it means in this sentence.")
-        }
-        if controller.isTriggerModifierDown {
-            return String(localized: "Great — keep holding for a moment.")
-        }
-        return String(localized: "Move the pointer onto the blue word, then hold Left Option.")
-    }
-
-    private var guidedResultCard: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 10) {
-                guidedStepBadge(number: 1, done: guidedTranslationComplete)
-                Text(String(localized: "Translate the blue word"))
-                    .font(.system(size: 13.5, weight: .semibold))
-                Spacer()
-                Text("⌥  Left Option")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(controller.isTriggerModifierDown ? Color.white : PointTheme.cobalt)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 6)
-                    .background(
-                        controller.isTriggerModifierDown ? PointTheme.cobalt : PointTheme.cobalt.opacity(0.08),
-                        in: Capsule()
-                    )
-            }
-
-            Divider()
-
-            if let base = controller.baseTranslation,
-               let request = controller.currentRequest {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(request.word)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(base.primaryText)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(PointTheme.cobalt)
-                        .lineLimit(2)
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-                guidedContextSection
-            } else if case .extracting = controller.basePhase {
-                HStack(spacing: 9) {
-                    ProgressView().controlSize(.small)
-                    Text(String(localized: "Reading the word under your pointer…"))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-            } else if case .failed(_, let failure) = controller.basePhase {
-                guidedRetryRow(message: guidedFailureText(failure))
-            } else {
-                Label(
-                    String(localized: "The blue word is the target. Pointrans responds while Left Option is held."),
-                    systemImage: "cursorarrow"
-                )
-                .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(.secondary)
-            }
-        }
-        .padding(15)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(PointTheme.controlFill(colorScheme), in: RoundedRectangle(cornerRadius: 15))
-        .accessibilityIdentifier("guided-live-result")
     }
 
     @ViewBuilder
-    private var guidedContextSection: some View {
-        Divider()
-        switch controller.insightPhase {
-        case .idle:
-            Button {
-                controller.requestContextInsight()
-            } label: {
-                HStack(spacing: 9) {
-                    guidedStepBadge(number: 2, done: false)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "See what it means in this sentence"))
-                            .font(.system(size: 13.5, weight: .semibold))
-                        Text(String(localized: "Pointrans will explain this exact use."))
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 20))
-                }
-                .foregroundStyle(PointTheme.cobalt)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("guided-context-button")
-
-        case .loading:
-            HStack(spacing: 9) {
-                ProgressView().controlSize(.small)
-                Text(String(localized: "Understanding this sentence…"))
-                    .font(.system(size: 13, weight: .medium))
+    private var guidedCoach: some View {
+        HStack(spacing: 13) {
+            guidedCoachIcon
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(guidedCoachTitle)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(guidedCoachDetail)
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-        case .ready(_, let result):
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    guidedStepBadge(number: 2, done: true)
-                    Text(result.insight.contextualMeaning)
-                        .font(.system(size: 14.5, weight: .semibold))
-                    Spacer()
-                    Text(result.route == .onDevice ? String(localized: "On this Mac") : String(localized: "Online"))
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                Text(result.insight.explanation)
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-            }
-
-        case .failed(_, let failure):
-            switch failure {
-            case .onlineUnavailable:
-                onlineExplanationFailure(serviceNeedsUpdate: false)
-            case .onlineServiceIncompatible:
-                onlineExplanationFailure(serviceNeedsUpdate: true)
-            default:
-                if OnlineExplanationConsentPolicy.shouldPrompt(
-                    failure: failure,
-                    consent: controller.preferences.cloudContextConsent
-                ) {
-                    onlineExplanationConsent
-                } else if failure == .aiUnavailable,
-                          controller.preferences.cloudContextConsent == .denied {
-                    onlineExplanationRecovery
-                } else {
-                    guidedRetryRow(message: guidedFailureText(failure), retriesContext: true)
-                }
-            }
-        }
-    }
-
-    private var onlineExplanationConsent: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text(String(localized: "This Mac couldn't create the extra explanation."))
-                .font(.system(size: 13, weight: .semibold))
-            Text(String(localized: "To continue, Pointrans can send only “breakthrough” and this sample sentence for an online explanation. It never sends a screenshot or the app you're using."))
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button(String(localized: "Not now")) {
-                    controller.setCloudContextConsent(.denied)
-                }
-                Spacer()
-                Button(String(localized: "Use online explanation")) {
-                    controller.setCloudContextConsent(.allowed)
-                    controller.requestContextInsight()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PointTheme.cobalt)
-            }
-        }
-    }
-
-    private var onlineExplanationRecovery: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text(String(localized: "An explanation isn't available on this Mac right now."))
-                .font(.system(size: 12.5, weight: .semibold))
-            HStack {
-                Button(String(localized: "Try again on this Mac")) {
-                    controller.requestContextInsight(allowsOnlineFallback: false)
-                }
-                Spacer()
-                Button(String(localized: "Use online explanation")) {
-                    controller.setCloudContextConsent(.allowed)
-                    controller.requestContextInsight()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PointTheme.cobalt)
-            }
-        }
-    }
-
-    private func onlineExplanationFailure(serviceNeedsUpdate: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text(serviceNeedsUpdate
-                 ? String(localized: "Online explanation needs a service update.")
-                 : String(localized: "Online explanation couldn't finish."))
-                .font(.system(size: 12.5, weight: .semibold))
-            Text(serviceNeedsUpdate
-                 ? String(localized: "The word translation is complete, but the online explanation service is not ready for this version yet.")
-                 : String(localized: "The word translation is complete. Try this Mac again or check the online explanation."))
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button(String(localized: "Try again on this Mac")) {
-                    controller.requestContextInsight(allowsOnlineFallback: false)
-                }
-                Spacer()
-                Button(String(localized: "Check online again")) {
-                    controller.requestContextInsight()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(PointTheme.cobalt)
-            }
-        }
-    }
-
-    private func guidedRetryRow(message: String, retriesContext: Bool = false) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.orange)
-            Text(message)
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-            Spacer()
-            Button(String(localized: "Try again")) {
-                if retriesContext {
-                    controller.requestContextInsight()
-                } else {
+            Spacer(minLength: 8)
+            if case .failed = controller.basePhase {
+                Button(String(localized: "Try again")) {
                     controller.retryTutorialAttempt()
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(PointTheme.cobalt)
+                .accessibilityIdentifier("guided-practice-retry")
+            } else if !guidedTranslationComplete, !guidedExperienceComplete {
+                Text("⌥  Left Option")
+                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(controller.isTriggerModifierDown ? Color.white : PointTheme.cobalt)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(
+                        controller.isTriggerModifierDown ? PointTheme.cobalt : PointTheme.cobalt.opacity(0.09),
+                        in: Capsule()
+                    )
+                    .animation(.easeOut(duration: 0.12), value: controller.isTriggerModifierDown)
             }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .leading)
+        .background(PointTheme.controlFill(colorScheme), in: RoundedRectangle(cornerRadius: 15))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("guided-practice-status")
+    }
+
+    @ViewBuilder
+    private var guidedCoachIcon: some View {
+        if guidedExperienceComplete {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 25))
+                .foregroundStyle(.green)
+        } else if case .extracting = controller.basePhase {
+            ProgressView().controlSize(.small)
+        } else if case .loading = controller.insightPhase {
+            ProgressView().controlSize(.small)
+        } else if case .failed = controller.basePhase {
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(.system(size: 23))
+                .foregroundStyle(.orange)
+        } else if case .failed = controller.insightPhase {
+            Image(systemName: "arrow.up.right.circle.fill")
+                .font(.system(size: 23))
+                .foregroundStyle(PointTheme.cobalt)
+        } else if guidedTranslationComplete {
+            Image(systemName: "cursorarrow.click.2")
+                .font(.system(size: 23))
+                .foregroundStyle(PointTheme.cobalt)
+        } else {
+            Image(systemName: "cursorarrow.motionlines")
+                .font(.system(size: 23))
+                .foregroundStyle(PointTheme.cobalt)
         }
     }
 
-    private func guidedStepBadge(number: Int, done: Bool) -> some View {
-        ZStack {
-            Circle().fill(done ? Color.green : PointTheme.cobalt.opacity(0.11))
-            if done {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-            } else {
-                Text("\(number)")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(PointTheme.cobalt)
-            }
+    private var guidedCoachTitle: String {
+        if guidedExperienceComplete {
+            return String(localized: "Done — keep using the result card.")
         }
-        .frame(width: 22, height: 22)
+        if case .loading = controller.insightPhase {
+            return String(localized: "Pointrans is explaining this sentence")
+        }
+        if case .failed = controller.insightPhase {
+            return String(localized: "Continue in the translation card")
+        }
+        if case .failed(_, let failure) = controller.basePhase {
+            return guidedFailureText(failure)
+        }
+        if guidedTranslationComplete {
+            return controller.isTriggerModifierDown
+                ? String(localized: "Translation is ready — release Left Option")
+                : String(localized: "Click “Explain in this sentence” in the card")
+        }
+        if case .extracting = controller.basePhase {
+            return String(localized: "Reading the blue word…")
+        }
+        return controller.isTriggerModifierDown
+            ? String(localized: "Hold still for a moment")
+            : String(localized: "Point to the blue word and hold Left Option")
+    }
+
+    private var guidedCoachDetail: String {
+        if guidedExperienceComplete {
+            return String(localized: "Setup will close automatically; your real result stays open.")
+        }
+        if case .loading = controller.insightPhase {
+            return String(localized: "No other action is needed. The real result will stay open when setup finishes.")
+        }
+        if case .failed = controller.insightPhase {
+            return String(localized: "The result card shows one clear recovery action. Follow it there; your translation is preserved.")
+        }
+        if case .failed = controller.basePhase {
+            return String(localized: "Move back to the blue word and repeat the same gesture.")
+        }
+        if guidedTranslationComplete {
+            return controller.isTriggerModifierDown
+                ? String(localized: "The real translation card is beside your pointer.")
+                : String(localized: "The blue action at the bottom of the real card completes the experience.")
+        }
+        if case .extracting = controller.basePhase {
+            return String(localized: "Keep the pointer still until the real translation card appears.")
+        }
+        return String(localized: "The translation will appear beside your pointer, just like normal use.")
     }
 
     private var bottomBar: some View {
@@ -522,12 +390,16 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
-            Button(String(localized: "Quit Pointrans")) { NSApp.terminate(nil) }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+            Button {
+                NSApp.terminate(nil)
+            } label: {
+                Label(String(localized: "Quit Pointrans"), systemImage: "power")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("onboarding-quit-button")
             Spacer()
             if stage == .guidedExperience {
-                Text(String(localized: "Setup finishes automatically after the two actions."))
+                Text(String(localized: "The setup window closes automatically after the real explanation appears."))
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(.secondary)
             } else if stage == .welcome {
@@ -666,7 +538,7 @@ struct OnboardingView: View {
 
     private func finish() {
         guard guidedExperienceComplete else { return }
-        controller.setTutorialMode(false)
+        controller.completeTutorialModeKeepingResult()
         controller.preferences.onboardingVersion = AppPreferences.currentOnboardingVersion
         controller.preferences.onboardingStage = .complete
         controller.start()

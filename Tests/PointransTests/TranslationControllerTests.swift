@@ -254,7 +254,7 @@ final class TranslationControllerTests: XCTestCase {
         XCTAssertEqual(direction, .chineseToEnglish)
     }
 
-    func testGuidedExperienceUsesItsVisibleTargetAndKeepsTheRealResultInPage() async throws {
+    func testGuidedExperienceUsesTheVisibleTargetAndTheRealPreviewCard() async throws {
         let points = testPoints()
         let extractor = CountingExtractor()
         let harness = makeHarness(extractor: extractor)
@@ -282,11 +282,15 @@ final class TranslationControllerTests: XCTestCase {
         XCTAssertEqual(harness.controller.currentRequest?.word, "breakthrough")
         XCTAssertEqual(harness.controller.extraction?.source, .guidedSample)
         XCTAssertNotNil(harness.controller.baseTranslation)
-        guard case .pinned(let sessionID) = harness.controller.panelMode else {
-            return XCTFail("The guided result must remain owned by the onboarding page after release")
+        guard case .preview(let sessionID) = harness.controller.panelMode else {
+            return XCTFail("The guided result must use the same real Preview card as normal translation")
         }
 
-        harness.controller.receive(.modifierReleased(point: points.first, timestamp: 1.3))
+        harness.controller.requestContextInsight(allowsOnlineFallback: false)
+        XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: sessionID))
+
+        harness.controller.completeTutorialModeKeepingResult()
+        XCTAssertFalse(harness.controller.isTutorialMode)
         XCTAssertEqual(harness.controller.panelMode, .pinned(sessionID: sessionID))
         XCTAssertNotNil(harness.controller.baseTranslation)
     }

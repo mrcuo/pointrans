@@ -12,18 +12,22 @@ final class ApplicationShellCoordinator: NSObject {
     private let statusBar: StatusBarController
     private let controlWindow: NSWindow
     private let onboardingWindow: NSWindow
+    private let onboardingWindowDelegate: OnboardingWindowCloseDelegate
     private var recoveryCheck: Task<Void, Never>?
 
     init(
         controller: TranslationController,
         permissions: PermissionCoordinator,
         languagePacks: LanguagePackManager,
-        preferences: AppPreferences
-    ) throws {
+        preferences: AppPreferences,
+        statusBar: StatusBarController
+    ) {
         self.controller = controller
         self.permissions = permissions
         self.languagePacks = languagePacks
         self.preferences = preferences
+        self.statusBar = statusBar
+        onboardingWindowDelegate = OnboardingWindowCloseDelegate()
 
         controlWindow = Self.makeControlWindow(
             root: ControlCenterView(
@@ -43,9 +47,10 @@ final class ApplicationShellCoordinator: NSObject {
             )
         )
 
-        statusBar = try StatusBarController(validating: ())
         super.init()
 
+        onboardingWindow.delegate = onboardingWindowDelegate
+        onboardingWindowDelegate.onClose = { NSApp.terminate(nil) }
         finishOnboarding = { [weak self] in self?.finishOnboarding() }
         statusBar.onLeftClick = { [weak self] in self?.toggleControlCenter() }
         statusBar.onOpen = { [weak self] in self?.showControlCenter() }
@@ -65,12 +70,13 @@ final class ApplicationShellCoordinator: NSObject {
     }
 
     func launch() {
+        statusBar.ensureVisible()
         permissions.refresh()
         refreshPresentation()
+        scheduleStatusRecoveryCheck()
         if preferences.didCompleteOnboarding {
             languagePacks.beginRequiredPreparation()
             controller.start()
-            scheduleStatusRecoveryCheck()
         } else {
             preferences.onboardingStage = normalizedStage(preferences.onboardingStage)
             showOnboarding()
@@ -102,6 +108,7 @@ final class ApplicationShellCoordinator: NSObject {
         permissions.stop()
         controlWindow.orderOut(nil)
         onboardingWindow.orderOut(nil)
+        statusBar.invalidate()
     }
 
     private func showOnboarding() {
@@ -163,6 +170,7 @@ final class ApplicationShellCoordinator: NSObject {
     }
 
     private func refreshPresentation() {
+        statusBar.ensureVisible()
         let readiness = readiness
         statusBar.update(readiness: readiness, isPaused: !preferences.translationEnabled)
     }
@@ -206,7 +214,7 @@ final class ApplicationShellCoordinator: NSObject {
     private static func makeOnboardingWindow(root: OnboardingView) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 640, height: 620),
-            styleMask: [.titled, .fullSizeContentView],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -214,6 +222,7 @@ final class ApplicationShellCoordinator: NSObject {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
+        window.isMovableByWindowBackground = true
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.contentViewController = NSHostingController(rootView: root)
         window.setAccessibilityIdentifier("pointrans-onboarding-window")
@@ -222,7 +231,17 @@ final class ApplicationShellCoordinator: NSObject {
 }
 
 @MainActor
-private final class StatusBarController: NSObject {
+private final class OnboardingWindowCloseDelegate: NSObject, NSWindowDelegate {
+    var onClose: (() -> Void)?
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        onClose?()
+        return false
+    }
+}
+
+@MainActor
+final class StatusBarController: NSObject {
     var onLeftClick: (() -> Void)?
     var onOpen: (() -> Void)?
     var onTogglePaused: (() -> Void)?
@@ -231,6 +250,7 @@ private final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let contextMenu = NSMenu()
     private let pauseItem = NSMenuItem()
+    private var isInvalidated = false
 
     init(validating: Void) throws {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -243,6 +263,7 @@ private final class StatusBarController: NSObject {
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
         button.toolTip = "Pointrans"
+        button.setAccessibilityLabel("Pointrans")
         button.target = self
         button.action = #selector(activateStatusItem)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -255,6 +276,18 @@ private final class StatusBarController: NSObject {
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: String(localized: "Quit Pointrans"), action: #selector(quit), keyEquivalent: "q")
         for item in contextMenu.items where item.target == nil { item.target = self }
+    }
+
+    func ensureVisible() {
+        guard !isInvalidated else { return }
+        statusItem.isVisible = true
+    }
+
+    func invalidate() {
+        guard !isInvalidated else { return }
+        isInvalidated = true
+        contextMenu.cancelTracking()
+        NSStatusBar.system.removeStatusItem(statusItem)
     }
 
     var anchorRect: CGRect? {
@@ -271,6 +304,11 @@ private final class StatusBarController: NSObject {
     }
 
     func update(readiness: AppReadiness, isPaused: Bool) {
+        ensureVisible()
+        let isOnboarding = readiness == .onboarding
+        statusItem.length = isOnboarding ? NSStatusItem.variableLength : NSStatusItem.squareLength
+        statusItem.button?.title = isOnboarding ? " Pointrans" : ""
+        statusItem.button?.imagePosition = isOnboarding ? .imageLeading : .imageOnly
         let attention: Bool = switch readiness {
         case .needsAccessibility, .needsScreenCapture, .listenerFailed, .fatalStartupError: true
         default: false

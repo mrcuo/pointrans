@@ -86,6 +86,19 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.onboardingStage, .guidedExperience)
     }
 
+    func testVersionThreeCompletionCannotBypassTheRebuiltRealPractice() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(3, forKey: "onboardingVersion")
+        defaults.set(OnboardingStage.complete.rawValue, forKey: "onboardingStage")
+
+        let preferences = AppPreferences(defaults: defaults)
+
+        XCTAssertFalse(preferences.didCompleteOnboarding)
+        XCTAssertEqual(preferences.onboardingStage, .complete)
+        XCTAssertEqual(AppPreferences.currentOnboardingVersion, 4)
+    }
+
     private func makeDefaults() -> (UserDefaults, String) {
         let name = "PointransTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: name)!, name)

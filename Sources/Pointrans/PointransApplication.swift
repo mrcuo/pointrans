@@ -10,7 +10,24 @@ enum PointransApplication {
         let application = NSApplication.shared
         application.delegate = lifetime.delegate
         application.setActivationPolicy(.accessory)
+        application.mainMenu = makeMainMenu(for: application)
         withExtendedLifetime(lifetime) { application.run() }
+    }
+
+    private static func makeMainMenu(for application: NSApplication) -> NSMenu {
+        let mainMenu = NSMenu()
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu(title: "Pointrans")
+        let quit = NSMenuItem(
+            title: String(localized: "Quit Pointrans"),
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        quit.target = application
+        applicationMenu.addItem(quit)
+        applicationItem.submenu = applicationMenu
+        mainMenu.addItem(applicationItem)
+        return mainMenu
     }
 }
 
@@ -19,9 +36,16 @@ final class PointransAppDelegate: NSObject, NSApplicationDelegate {
     private var controller: TranslationController?
     private var shell: ApplicationShellCoordinator?
     private var overlay: TranslationPanelCoordinator?
+    private var statusBar: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
+            // The menu-bar item is the application's primary surface. Create
+            // and retain it before loading dictionaries, models, or windows so
+            // every successful process launch is immediately discoverable.
+            let statusBar = try StatusBarController(validating: ())
+            self.statusBar = statusBar
+
             let resourceBundle: Bundle
             #if SWIFT_PACKAGE
             resourceBundle = .module
@@ -48,8 +72,11 @@ final class PointransAppDelegate: NSObject, NSApplicationDelegate {
                 let defaults = UserDefaults(suiteName: suiteName)!
                 defaults.removePersistentDomain(forName: suiteName)
                 preferences = AppPreferences(defaults: defaults)
-                let onboarding = UITestSupport.scenario == "onboarding"
+                let onboarding = UITestSupport.scenario.hasPrefix("onboarding")
                 preferences.didCompleteOnboarding = !onboarding
+                if UITestSupport.scenario == "onboarding-guided" {
+                    preferences.onboardingStage = .guidedExperience
+                }
                 preferences.cloudContextConsent = .allowed
                 languagePacks = LanguagePackManager(forceInstalledForTesting: true)
                 #else
@@ -75,11 +102,12 @@ final class PointransAppDelegate: NSObject, NSApplicationDelegate {
             let permissionCoordinator = PermissionCoordinator(provider: permissionProvider)
             let controller = TranslationController(preferences: preferences, environment: environment)
             let overlay = TranslationPanelCoordinator(controller: controller, isUITesting: isUITesting)
-            let shell = try ApplicationShellCoordinator(
+            let shell = ApplicationShellCoordinator(
                 controller: controller,
                 permissions: permissionCoordinator,
                 languagePacks: languagePacks,
-                preferences: preferences
+                preferences: preferences,
+                statusBar: statusBar
             )
 
             self.controller = controller
@@ -103,7 +131,11 @@ final class PointransAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        shell?.stop()
+        if let shell {
+            shell.stop()
+        } else {
+            statusBar?.invalidate()
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

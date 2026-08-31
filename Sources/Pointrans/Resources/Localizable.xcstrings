@@ -151,6 +151,16 @@
         }
       }
     },
+    "Click “Explain in this sentence” in the card": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击翻译卡里的“解释这个词在句子里的意思”"
+          }
+        }
+      }
+    },
     "Close": {
       "localizations": {
         "zh-Hans": {
@@ -231,12 +241,32 @@
         }
       }
     },
+    "Continue in the translation card": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在翻译卡中继续"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "复制"
+          }
+        }
+      }
+    },
+    "Done — keep using the result card.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成了，结果卡可以继续使用。"
           }
         }
       }
@@ -257,6 +287,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "英文 → 中文"
+          }
+        }
+      }
+    },
+    "Explain in this sentence": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解释这个词在句子里的意思"
           }
         }
       }
@@ -301,12 +341,42 @@
         }
       }
     },
+    "Hold still for a moment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持光标不动片刻"
+          }
+        }
+      }
+    },
     "Hover delay": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "悬停延迟"
+          }
+        }
+      }
+    },
+    "In this sentence": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在这句话里"
+          }
+        }
+      }
+    },
+    "Keep the pointer still until the real translation card appears.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持光标不动，直到真实翻译卡出现。"
           }
         }
       }
@@ -361,6 +431,16 @@
         }
       }
     },
+    "Move back to the blue word and repeat the same gesture.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把光标移回蓝色单词，再做一次相同操作。"
+          }
+        }
+      }
+    },
     "Move the pointer onto the blue word, then hold Left Option.": {
       "localizations": {
         "zh-Hans": {
@@ -377,6 +457,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "绝不在线发送文字"
+          }
+        }
+      }
+    },
+    "No other action is needed. The real result will stay open when setup finishes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在无需进行其他操作。设置结束后，真实结果仍会保持打开。"
           }
         }
       }
@@ -561,6 +651,16 @@
         }
       }
     },
+    "Point to the blue word and hold Left Option": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把光标指向蓝色单词，按住左 Option"
+          }
+        }
+      }
+    },
     "Pointrans can use an online explanation with only this word and its sentence. It never sends a screenshot or the app you're using.": {
       "localizations": {
         "zh-Hans": {
@@ -591,6 +691,16 @@
         }
       }
     },
+    "Pointrans is explaining this sentence": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pointrans 正在解释这句话"
+          }
+        }
+      }
+    },
     "Pointrans is preparing Apple's on-device translation languages. This built-in capability must be ready before the guided experience.": {
       "localizations": {
         "zh-Hans": {
@@ -607,6 +717,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pointrans 正在理解这句话，无需进行其他操作。"
+          }
+        }
+      }
+    },
+    "Pointrans is ready. Try it here.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pointrans 已经可以用了，在这里试一次。"
           }
         }
       }
@@ -697,6 +817,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "退出后重新打开 Pointrans"
+          }
+        }
+      }
+    },
+    "Reading the blue word…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取蓝色单词…"
           }
         }
       }
@@ -861,6 +991,16 @@
         }
       }
     },
+    "Setup will close automatically; your real result stays open.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置窗口会自动关闭，真实结果卡会继续保留。"
+          }
+        }
+      }
+    },
     "Starting…": {
       "localizations": {
         "zh-Hans": {
@@ -897,6 +1037,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "就是这样，Pointrans 已在菜单栏就绪。"
+          }
+        }
+      }
+    },
+    "The blue action at the bottom of the real card completes the experience.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击真实翻译卡底部的蓝色操作即可完成体验。"
           }
         }
       }
@@ -951,6 +1101,16 @@
         }
       }
     },
+    "The real translation card is beside your pointer.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "真实翻译卡就在光标旁。"
+          }
+        }
+      }
+    },
     "The required Apple Translation language pair is unavailable on this Mac.": {
       "localizations": {
         "zh-Hans": {
@@ -961,12 +1121,42 @@
         }
       }
     },
+    "The result card shows one clear recovery action. Follow it there; your translation is preserved.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译卡里会显示唯一的恢复操作；按提示操作即可，已有翻译不会丢失。"
+          }
+        }
+      }
+    },
     "The selected text cannot be analyzed.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "无法分析所选文字。"
+          }
+        }
+      }
+    },
+    "The setup window closes automatically after the real explanation appears.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "真实解释出现后，设置窗口会自动关闭。"
+          }
+        }
+      }
+    },
+    "The translation will appear beside your pointer, just like normal use.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译会像日常使用一样直接出现在光标旁。"
           }
         }
       }
@@ -1011,6 +1201,16 @@
         }
       }
     },
+    "This is the real Pointrans interaction—not a simulated result. The translation card will appear beside your pointer.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这里使用的就是 Pointrans 日常交互，不是模拟结果。翻译卡会直接出现在光标旁。"
+          }
+        }
+      }
+    },
     "To continue, Pointrans can send only “breakthrough” and this sample sentence for an online explanation. It never sends a screenshot or the app you're using.": {
       "localizations": {
         "zh-Hans": {
@@ -1047,6 +1247,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "翻译已暂停"
+          }
+        }
+      }
+    },
+    "Translation is ready — release Left Option": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译已出现，请松开左 Option"
           }
         }
       }

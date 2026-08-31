@@ -177,7 +177,7 @@ struct TranslationCardView: View {
                         HStack(spacing: 7) {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text(String(localized: "Context insight"))
+                            Text(String(localized: "In this sentence"))
                                 .font(.system(size: 13.5, weight: .bold))
                             Spacer()
                             Text(routeLabel(result))
@@ -267,7 +267,7 @@ struct TranslationCardView: View {
                             Image(systemName: "sparkles")
                                 .font(.system(size: 14, weight: .semibold))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "Context insight"))
+                                Text(String(localized: "Explain in this sentence"))
                                     .font(.system(size: 13.5, weight: .semibold))
                                 Text(String(localized: "Explain this word in its sentence"))
                                     .font(.system(size: 11.5))
@@ -339,13 +339,12 @@ struct TranslationCardView: View {
                         controller.requestContextInsight(allowsOnlineFallback: false)
                     }
                     Spacer()
-                    if controller.preferences.cloudContextConsent != .denied {
-                        Button(String(localized: "Use online explanation")) {
-                            controller.requestContextInsight()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(PointTheme.cobalt)
+                    Button(String(localized: "Use online explanation")) {
+                        controller.setCloudContextConsent(.allowed)
+                        controller.requestContextInsight()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(PointTheme.cobalt)
                 }
             }
 
@@ -368,7 +367,7 @@ struct TranslationCardView: View {
                 .foregroundStyle(.secondary)
 
         default:
-            Label(String(localized: "Context insight is temporarily unavailable."), systemImage: "exclamationmark.circle.fill")
+            Label(String(localized: "The explanation is temporarily unavailable."), systemImage: "exclamationmark.circle.fill")
                 .font(.system(size: 12.5))
                 .foregroundStyle(.secondary)
         }
@@ -383,14 +382,15 @@ struct TranslationCardView: View {
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "sparkles")
-                    Text(String(localized: "Context insight"))
+                    Text(String(localized: "Explain in this sentence"))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .bold))
                 }
                 .font(.system(size: 12, weight: .semibold))
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(PointTheme.cobalt)
+            .buttonStyle(.borderedProminent)
+            .tint(PointTheme.cobalt)
+            .controlSize(.small)
             .accessibilityIdentifier("context-insight-button")
         }
         .padding(.horizontal, 18)
@@ -408,7 +408,7 @@ struct TranslationCardView: View {
             Button {
                 controller.requestContextInsight()
             } label: {
-                Label(String(localized: "AI context"), systemImage: "sparkles")
+                Label(String(localized: "Explain in this sentence"), systemImage: "sparkles")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plain)
@@ -475,7 +475,7 @@ struct TranslationCardView: View {
                 String(localized: "Today's cloud context quota is used up. On-device analysis remains available.")
             }
         case .aiUnavailable:
-            String(localized: "Context insight is temporarily unavailable.")
+            String(localized: "The explanation is temporarily unavailable.")
         case .onlineUnavailable:
             String(localized: "Online explanation couldn't finish.")
         case .onlineServiceIncompatible:

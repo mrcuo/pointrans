@@ -111,10 +111,6 @@ final class TranslationPanelCoordinator {
     }
 
     func synchronize() {
-        guard !controller.isTutorialMode else {
-            hideForGuidedExperience()
-            return
-        }
         switch controller.panelMode {
         case .hidden:
             hideAnimated()
@@ -123,12 +119,6 @@ final class TranslationPanelCoordinator {
         case .pinned(let sessionID):
             show(sessionID: sessionID, pinned: true)
         }
-    }
-
-    private func hideForGuidedExperience() {
-        panel.orderOut(nil)
-        panel.alphaValue = 0
-        shownSessionID = nil
     }
 
     private func show(sessionID: UUID, pinned: Bool) {
